@@ -209,6 +209,7 @@ class CANet_cal(nn.Module):
         self.bap = BAP(pool='GAP')
         # Classification Layer
         self.fc = nn.Linear(self.M * self.num_features, classlen, bias=False)
+        self.hashcal = nn.Linear(classlen, bits)
     def forward(self, x):
         return self.forward_vanilla(x)
 
@@ -254,8 +255,18 @@ class CANet_cal(nn.Module):
         y33 = self.backbone.fc(f33_b)
 
         f44 = torch.cat((f11, f22, f33), -1)
-        f44_b = self.backbone.hashing_concat(f44)
+        # f44_b = self.backbone.hashing_concat(f44)
 
+        x_mask = torch.ones(f44.size()).detach().cuda() * 0.7  # 0.7
+        for i in range(x_mask.size()[0]):
+            values, indices = torch.topk(f44[i], 3)
+            x_mask[i, torch.argmax(f44[i])] = 1
+            # x_mask[i, indices.tolist()[0]] = 1
+            # x_mask[i, indices.tolist()[1]] = 0.9
+            # x_mask[i, indices.tolist()[2]] = 0.8
+
+        x_b = x * x_mask
+        f44_b = self.hashcal(x_b)
         # x = self.backbone.avgpool(feats)
         # x = torch.flatten(x, 1)
         # y_x = self.backbone.fc_x(x)

@@ -31,7 +31,7 @@ def main(config):
                         #  limit_train_batches=0.5
                          default_root_dir=saving_dir,
                          num_sanity_val_steps=-1,
-                         max_epochs=30,
+                         max_epochs=90,
                          callbacks=checkpoint_callback,
                          logger=logger,
                         )
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # batch-size
     parser.add_argument('--batch_size', default=128, type=int, help='batch size for training')
     # epoch
-    parser.add_argument('--epoch', default=30, type=int, help='epoch for training')
+    parser.add_argument('--epoch', default=90, type=int, help='epoch for training')
     # gpu
     parser.add_argument('--gpu', default=[0], help='gpu-id')
     # num_workers
