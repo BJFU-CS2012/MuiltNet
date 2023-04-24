@@ -22,13 +22,10 @@ class HInterface(pl.LightningModule):
         # print('pseudocode\n',train_batch)
         x, y, pseudocode = train_batch
         alpha1, alpha2, f44_b, y33, feats = self.model(x)
-        print('alpha1\n',alpha1)
-        print('alpha2\n',alpha2)
-        print('f44_b\n',f44_b)
-        print('y33\n',y33)
-        print('feats\n',feats)
+
         with torch.no_grad():
             zoom_images = batch_augment(x, feats, mode='zoom')
+        print('zoom_images',zoom_images.shape)
         _, _, _, y_zoom, _ = self.model(zoom_images)
 
         y_att = (y33 + y_zoom)/2
