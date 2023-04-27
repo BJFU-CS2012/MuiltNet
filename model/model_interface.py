@@ -1,23 +1,17 @@
 import torch
-import torch.nn as nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
 import os
-from PIL import Image
-import matplotlib.pyplot as plt
-from model.ca_net_cal import CANet_cal
+
+from model.ca_net import CANet
 from utils.attention_zoom import batch_augment
-from utils.evaluate import calc_map_k,CenterLoss
-# General loss functions
-cross_entropy_loss = nn.CrossEntropyLoss()
-center_loss = CenterLoss()
-# feature_center: size of (#classes, #attention_maps * #channel_features)
-feature_center = torch.zeros(200, 32 * 2048).cuda()
+from utils.evaluate import calc_map_k
+
 class HInterface(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = CANet_cal(self.config)
+        self.model = CANet(self.config)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
@@ -27,29 +21,15 @@ class HInterface(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         # print('pseudocode\n',train_batch)
         x, y, pseudocode = train_batch
-        # feats = attention_map
-        alpha1, alpha2, f44_b, y33, feats, p, px,feature_maxtrix = self.model(x)
-
-        # Update Feature Center
-        feature_center_batch = F.normalize(feature_center[y], dim=-1)
-        feature_center[y] += 5e-2 * (feature_maxtrix.detach() - feature_center_batch)
-
-        ##################################
-        # Attention Cropping
-        ##################################
+        alpha1, alpha2, f44_b, y33, feats = self.model(x)
         with torch.no_grad():
             zoom_images = batch_augment(x, feats, mode='zoom')
-        _, _, _, y_zoom, _, y_pred_aug, y_pred_aux_aug, _= self.model(zoom_images)
-        y_pred_aux = torch.cat([px, y_pred_aux_aug], dim=0)
-        y_aux = torch.cat([y, y], dim=0)
+        _, _, _, y_zoom, _ = self.model(zoom_images)
 
-        # y_att = (y33 + y_zoom)/2
-        # loss_y = smooth_CE(y_att, y, 0.9)
-        loss_y = cross_entropy_loss(p, y) / 3. + \
-                 cross_entropy_loss(y_pred_aux, y_aux) * 2. / 3. + \
-                 cross_entropy_loss(y_pred_aug, y)  / 3. + \
-                 center_loss(feature_maxtrix, feature_center_batch)
+        y_att = (y33 + y_zoom)/2
+        loss_y = smooth_CE(y_att, y, 0.9)
         loss_code = F.mse_loss(f44_b, pseudocode)
+
         loss = loss_code * (1 / alpha1) ** 2 + loss_y * (1 / alpha2) ** 2 + \
                torch.log(alpha1 + 1) + torch.log(alpha2 + 1)
 
@@ -63,7 +43,7 @@ class HInterface(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         x, y, flag = val_batch
-        _, _, f44_b, _, _, _, _, _ = self.model(x)
+        _, _, f44_b, _, _ = self.model(x)
 
         outputs = {'output_code': f44_b,
                    'label': y,
@@ -72,7 +52,7 @@ class HInterface(pl.LightningModule):
         return outputs
 
     def validation_epoch_end(self, outputs):
-        # print('outputs\n',outputs)
+        print('outputs\n',outputs)
         print("%s %d validation end, and calculate the metrics for hashing!" % (
         self.config.dataset, self.config.code_length))
         # flag==0 is gallery, and flag==1 is query
