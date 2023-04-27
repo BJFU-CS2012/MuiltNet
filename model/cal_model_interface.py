@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import os
 from PIL import Image
 import matplotlib.pyplot as plt
-from model.ca_net_cal import CANet_cal
+from model.ca_net import CANet_cal
 from utils.attention_zoom import batch_augment
 from utils.evaluate import calc_map_k,CenterLoss
 # General loss functions
