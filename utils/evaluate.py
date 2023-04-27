@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+
 def calc_hammingDist(B1, B2):
     q = B2.size(1)  # q=4
     if len(B1.size()) < 2:
@@ -35,15 +35,3 @@ def calc_map_k(qB, rB, query_L, retrieval_L, k=None):
         map = map + torch.mean(count.to(tindex.device) / tindex)
     map = map / num_query
     return map
-
-##############################################
-# Center Loss for Attention Regularization
-##############################################
-class CenterLoss(nn.Module):
-    def __init__(self):
-        super(CenterLoss, self).__init__()
-        self.l2_loss = nn.MSELoss(reduction='sum')
-
-    def forward(self, outputs, targets):
-        return self.l2_loss(outputs, targets) / outputs.size(0)
-
