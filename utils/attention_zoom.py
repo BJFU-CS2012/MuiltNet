@@ -10,11 +10,8 @@ import random
 def batch_augment(images, feature_map, mode='zoom'):
     batches, _, imgH, imgW = images.size()
     if mode == 'zoom':
-        print('feature_map.shape', feature_map.shape)
         attention = torch.sum(feature_map.detach(), dim=1, keepdim=True)
-        print('attention.shape',attention.shape)
         attention_map = nn.functional.interpolate(attention, size=(224, 224), mode='bilinear', align_corners=True)
-        print('attention_map.shape', attention_map.shape)
         zoom_radius = ScaleLayer(0.08)
         grid_size = 31
         padding_size = 30
@@ -34,7 +31,6 @@ def batch_augment(images, feature_map, mode='zoom'):
         xs = []
         for batch_index in range(batches):
             atten_map = attention_map[batch_index:batch_index + 1]
-            print('atten_map.shape', atten_map.shape)
             select_map = F.interpolate(atten_map, size=grid_size, mode='bilinear',
                                        align_corners=True)
             select_map_max = torch.max(select_map)

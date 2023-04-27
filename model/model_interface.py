@@ -3,7 +3,7 @@ from torch.nn import functional as F
 import pytorch_lightning as pl
 import os
 
-from model.ca_net import CANet
+from model.ca_net import CANet_att
 from utils.attention_zoom import batch_augment
 from utils.evaluate import calc_map_k
 
@@ -11,7 +11,7 @@ class HInterface(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = CANet(self.config)
+        self.model = CANet_att(self.config)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
