@@ -52,7 +52,7 @@ class HInterface(pl.LightningModule):
         return outputs
 
     def validation_epoch_end(self, outputs):
-        print('outputs\n',outputs)
+
         print("%s %d validation end, and calculate the metrics for hashing!" % (
         self.config.dataset, self.config.code_length))
         # flag==0 is gallery, and flag==1 is query
