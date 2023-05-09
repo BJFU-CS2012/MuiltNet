@@ -2,8 +2,8 @@ import torch
 from torch.nn import functional as F
 import pytorch_lightning as pl
 import os
-
-from model.ca_net import CANet
+import torch_dct as DCT
+from model.ca_net_dct import CANet
 from utils.attention_zoom import batch_augment
 from utils.evaluate import calc_map_k
 
@@ -19,11 +19,19 @@ class HInterface(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, train_batch, batch_idx):
-        # print('pseudocode\n',train_batch)
-        x, y, pseudocode = train_batch
-        alpha1, alpha2, f44_b, y33, feats = self.model(x)
+        print('+++++++++++++++++++++++++++++++++++\n')
+        x, ycbcr_image, y, pseudocode = train_batch
+        x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
+        num_batchsize = ycbcr_image.shape[0]
+        size = ycbcr_image.shape[2]
+
+        ycbcr_image = ycbcr_image.reshape(num_batchsize, 3, size // 8, 8, size // 8, 8).permute(0, 2, 4, 1, 3, 5)
+        ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho')
+        DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
+        input = (x, DCT_x)
+        alpha1, alpha2, f44_b, y33, feats = self.model(input)
         with torch.no_grad():
-            zoom_images = batch_augment(x, feats, mode='zoom')
+            zoom_images= batch_augment(x, feats, mode='zoom')
         _, _, _, y_zoom, _ = self.model(zoom_images)
 
         y_att = (y33 + y_zoom)/2
@@ -42,8 +50,20 @@ class HInterface(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        x, y, flag = val_batch
-        _, _, f44_b, _, _ = self.model(x)
+
+        x, ycbcr_image, y, flag = val_batch
+        x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
+        num_batchsize = ycbcr_image.shape[0]
+        size = ycbcr_image.shape[2]
+
+        ycbcr_image = ycbcr_image.reshape(num_batchsize, 3, size // 8, 8, size // 8, 8).permute(0, 2, 4, 1, 3, 5)
+        ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho')
+        DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
+
+        # print('ccccccccccccccccccccccc',DCT_x.shape) #torch.Size([32, 192, 44, 44])
+        input = (x,DCT_x)
+        _, _, f44_b, _, _ = self.model(input)
+
 
         outputs = {'output_code': f44_b,
                    'label': y,

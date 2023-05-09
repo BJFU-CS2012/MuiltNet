@@ -1,2 +1,2 @@
 
-from .data_interface import DInterface
+from .dct_interface import DInterface

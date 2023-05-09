@@ -1,1 +1,1 @@
-from .model_interface import HInterface
+from .dct_model_interface import HInterface

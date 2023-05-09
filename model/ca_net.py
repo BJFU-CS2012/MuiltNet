@@ -149,6 +149,7 @@ class CANet(nn.Module):
         x = self.backbone.bn1(x)
         x = self.backbone.relu(x)
         x1 = self.backbone.maxpool(x)
+
         x2 = self.backbone.layer1(x1)
         f1 = self.backbone.layer2(x2)
         f2 = self.backbone.layer3(f1)
@@ -165,6 +166,7 @@ class CANet(nn.Module):
         f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
         f33_b = self.backbone.b3(f33)
         y33 = self.backbone.fc(f33_b)
+
 
         f44 = torch.cat((f11, f22, f33), -1)
         f44_b = self.backbone.hashing_concat(f44)

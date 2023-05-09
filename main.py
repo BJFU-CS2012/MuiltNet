@@ -35,6 +35,7 @@ def main(config):
                          callbacks=checkpoint_callback,
                          logger=logger,
                         )
+    print('==================================')
     trainer.fit(model, data_module)
 
 if __name__ == '__main__':
