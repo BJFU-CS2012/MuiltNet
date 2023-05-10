@@ -5,7 +5,7 @@ Balanced Loss for Fine-grained hashing"(https://arxiv.org/abs/2303.11274).
 ## Requirements
 * Python3
 * PyTorch
-* PyTorch-Lightning
+* pip install pyTorch-Lightning == 1.9.4
 * Numpy
 * pandas
 

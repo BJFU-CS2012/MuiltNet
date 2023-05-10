@@ -43,6 +43,7 @@ class HInterface(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         x, y, flag = val_batch
+        print('x.shape',x.shape) # torch.Size([32, 3, 224, 224])
         _, _, f44_b, _, _ = self.model(x)
 
         outputs = {'output_code': f44_b,

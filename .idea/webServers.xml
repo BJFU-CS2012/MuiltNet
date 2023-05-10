@@ -9,6 +9,20 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="9c4457b9-49e9-4683-8ba0-f3ef6a4bbad4" name="恒源云">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="26324" sshConfigId="f0201c25-13a9-49c8-80e6-ea8dba357d82" sshConfig="root@i-1.gpushare.com:26324 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="e10332b5-133e-4d6c-81c3-fa45eb1f8deb" name="24G">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="26324" sshConfigId="f0201c25-13a9-49c8-80e6-ea8dba357d82" sshConfig="root@i-1.gpushare.com:26324 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>

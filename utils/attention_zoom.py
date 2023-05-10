@@ -3,13 +3,38 @@ import numpy as np
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Function
-
+import cv2
 import random
+from torchvision import transforms
+from PIL import Image
+
+def transform_invert(img, show=False):
+    # Tensor -> PIL.Image
+    # 注意：img.shape = [3,32,32] cifar10中的一张图片，经过transform后的tensor格式
+
+    if img.dim() == 3:  # single image # 3,32,32
+        img = img.unsqueeze(0)  # 在第0维增加一个维度 1,3,32,32
+    low = float(img.min())
+    high = float(img.max())
+    # img.clamp_(min=low, max=high)
+    img.sub_(low).div_(max(high - low, 1e-5))  # (img - low)/(high-low)
+    grid = img.squeeze(0)  # 去除维度为1的维度
+    print('img.size',img.shape)
+    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
+    img = Image.fromarray(ndarr)
+    if show:
+        img.show()
+    return img
 
 # generate zoom_image like Saliency-Sampler(ECCV2018)
 def batch_augment(images, feature_map, mode='zoom'):
     batches, _, imgH, imgW = images.size()
     if mode == 'zoom':
+        # pic = transform_invert(images)
+        # pic.save('random.jpg')
+        # ycbcr_image = cv2.cvtColor(pic, cv2.COLOR_RGB2YCrCb)
+        # ycbcr_image = torch.from_numpy(ycbcr_image)
+        # ycbcr_image = ycbcr_image.permute(2, 0, 1)
         attention = torch.sum(feature_map.detach(), dim=1, keepdim=True)
         attention_map = nn.functional.interpolate(attention, size=(224, 224), mode='bilinear', align_corners=True)
         zoom_radius = ScaleLayer(0.08)

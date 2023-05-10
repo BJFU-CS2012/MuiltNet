@@ -19,7 +19,7 @@ class HInterface(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, train_batch, batch_idx):
-        print('+++++++++++++++++++++++++++++++++++\n')
+        # print('++++++++++++++++training_step+++++++++++++++++++\n')
         x, ycbcr_image, y, pseudocode = train_batch
         x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
@@ -32,7 +32,9 @@ class HInterface(pl.LightningModule):
         alpha1, alpha2, f44_b, y33, feats = self.model(input)
         with torch.no_grad():
             zoom_images= batch_augment(x, feats, mode='zoom')
-        _, _, _, y_zoom, _ = self.model(zoom_images)
+
+        input_ycbcr = (zoom_images, DCT_x)
+        _, _, _, y_zoom, _ = self.model(input_ycbcr)
 
         y_att = (y33 + y_zoom)/2
         loss_y = smooth_CE(y_att, y, 0.9)
@@ -50,7 +52,6 @@ class HInterface(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-
         x, ycbcr_image, y, flag = val_batch
         x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
@@ -60,10 +61,10 @@ class HInterface(pl.LightningModule):
         ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho')
         DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
 
-        # print('ccccccccccccccccccccccc',DCT_x.shape) #torch.Size([32, 192, 44, 44])
         input = (x,DCT_x)
+        # print('ccccccccccccccccccccccccccccccccccccccccccccc\n', x.shape) # torch.Size([32, 3, 224, 224])
+        # print('ccccccccccccccccccccccccccccccccccccccccccccc\n', DCT_x.shape) # torch.Size([32, 192, 28, 28])
         _, _, f44_b, _, _ = self.model(input)
-
 
         outputs = {'output_code': f44_b,
                    'label': y,

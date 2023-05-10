@@ -13,6 +13,7 @@ from model import HInterface
 
 def main(config):
     data_module = DInterface(config=config)
+
     model = HInterface(config=config)
 
     # training

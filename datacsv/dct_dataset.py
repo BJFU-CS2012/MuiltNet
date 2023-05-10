@@ -50,9 +50,9 @@ class FG_dataset(Dataset):
         self.loader = loader
         self.config = config
         self.totensor = ToTensor()
-        self.resize = Resize(352, 352)
-        self.mean = np.array([[[124.55, 118.90, 102.94]]])
-        self.std = np.array([[[56.77, 55.97, 57.50]]])
+        self.resize = Resize(224, 224)
+        self.mean = np.array([[[0.485, 0.456, 0.406]]])
+        self.std = np.array([[[0.229, 0.224, 0.225]]])
         self.normalize = Normalize(mean=self.mean, std=self.std)
         imgs = []
         labels = []

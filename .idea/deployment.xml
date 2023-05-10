@@ -2,6 +2,20 @@
 <project version="4">
   <component name="PublishConfigData" serverName="森林人" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
+      <paths name="24G">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="恒源云">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="森林人">
         <serverdata>
           <mappings>

@@ -154,16 +154,24 @@ class CANet(nn.Module):
         f1 = self.backbone.layer2(x2)
         f2 = self.backbone.layer3(f1)
         f3 = self.backbone.layer4(f2)
-
+        print('---->f1.shape', f1.shape)  # torch.Size([32, 512, 28, 28])
+        print('---->f2.shape', f2.shape)  # torch.Size([32, 1024, 14, 14])
+        print('---->f3.shape', f3.shape)  # torch.Size([32, 2048, 7, 7])
         feats = f3
 
         f11 = self.backbone.conv_block1(f1).view(-1, self.num_ftrs // 2)
+        f11_c = self.backbone.conv_block1(f1)
+        print('f11_c.shape', f11_c.shape)  # torch.Size([32, 1024, 1, 1])
+        print('f11.shape',f11.shape) # torch.Size([32, 1024])
         f11_b = self.backbone.b1(f11)
 
         f22 = self.backbone.conv_block2(f2).view(-1, self.num_ftrs // 2)
+        print('f22.shape', f22.shape) # torch.Size([32, 1024])
+
         f22_b = self.backbone.b2(f22)
 
         f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
+        print('f33.shape', f33.shape) # torch.Size([32, 1024])
         f33_b = self.backbone.b3(f33)
         y33 = self.backbone.fc(f33_b)
 
