@@ -32,7 +32,7 @@ def main(config):
                         #  limit_train_batches=0.5
                          default_root_dir=saving_dir,
                          num_sanity_val_steps=-1,
-                         max_epochs=30,
+                         max_epochs=300,
                          callbacks=checkpoint_callback,
                          logger=logger,
                         )
