@@ -211,9 +211,10 @@ class PAM(nn.Module):
         return out
 
 class CANet(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, isZoom):
         super().__init__()
         self.config = config
+        self.isZoom = isZoom
         bits = self.config.code_length
         classlen = self.config.classlen
 
@@ -332,26 +333,17 @@ class CANet(nn.Module):
                 nn.ELU(inplace=True),
                 nn.Linear(self.feature_size, bits),
             )
-
-            # model_s#
-            self.conv_l2 = two_ConvBnRule(256)
-            self.conv_l3 = two_ConvBnRule(512)
-            self.conv_l4 = two_ConvBnRule(1024)
-            self.conv_l5 = two_ConvBnRule(2048)
-
-            self.freq_out_1 = nn.Conv2d(64, 1, 1, 1, 0)
-            self.freq_out_2 = nn.Conv2d(64, 1, 1, 1, 0)
-            self.freq_out_3 = nn.Conv2d(64, 1, 1, 1, 0)
-            self.freq_out_4 = nn.Conv2d(64, 1, 1, 1, 0)
-
             # print('after\n',self.backbone)
 
     def forward(self, x):
-        return self.forward_vanilla(x)
-
+        if self.isZoom:
+            return self.forward_vanilla_isZoom(x)
+        else:
+            return self.forward_vanilla(x)
     def forward_vanilla(self, input):
-
+        print('+++++++++++++++++++++isnotrzoom')
         x,DCT_x = input
+
 
         x = self.backbone.conv1(x)
         x = self.backbone.bn1(x)
@@ -363,25 +355,18 @@ class CANet(nn.Module):
         f1 = self.backbone.layer2(x2)
         f2 = self.backbone.layer3(f1)
         f3 = self.backbone.layer4(f2)
+        # print('---->x2.shape',x2.shape) # torch.Size([32, 256, 56, 56])
         # print('---->f1.shape',f1.shape) #torch.Size([32, 512, 28, 28])
         # print('---->f2.shape',f2.shape) #torch.Size([32, 1024, 14, 14])
         # print('---->f3.shape',f3.shape) #torch.Size([32, 2048, 7, 7])
         feats = f3
 
-        # 这里的缩减channel是为什么？？？这里需要参考dct的论文
-        x2 = self.conv_l2(x2)
-        f1 = self.conv_l3(f1)
-        f2 = self.conv_l4(f2)
-        f3, f3_mid = self.conv_l5(f3, mid=True)
-        f3 = self.hor(f3, f3_mid)
-        # print('====>f1.shape',f1.shape) #torch.Size([32, 64, 28, 28]) => 512
-        # print('====>f2.shape',f2.shape) # torch.Size([32, 64, 14, 14]) => 1024
-        # print('====>f3.shape',f3.shape) # torch.Size([32, 64, 7, 7])      => 2048
-
         self.seg = self.seg.to(DCT_x.device)
+        # DCT_x.shape        torch.Size([32, 192, 28, 28])
         feat_y = DCT_x[:, 0:64, :, :] * (self.seg + norm(self.vector_y))
         feat_Cb = DCT_x[:, 64:128, :, :] * (self.seg + norm(self.vector_cb))
         feat_Cr = DCT_x[:, 128:192, :, :] * (self.seg + norm(self.vector_cr))
+
         origin_feat_DCT = torch.cat((torch.cat((feat_y, feat_Cb), 1), feat_Cr), 1)
         origin_feat_DCT = self.shuffle(origin_feat_DCT)
         # print('feat_y', feat_y.shape)  # torch.Size([32, 64, 28, 28])
@@ -421,6 +406,7 @@ class CANet(nn.Module):
         feat_DCT = rearrange(feat_DCT, 'b n (h w) -> b n h w', h=16)
         feat_DCT = torch.nn.functional.interpolate(feat_DCT, size=(h, w))
         feat_DCT = origin_feat_DCT + feat_DCT               # rgb + freq
+
         # print('feat_DCT1.shape', feat_DCT.shape)    # torch.Size([32, 192, 256])
         # print('feat_DCT2.shape', feat_DCT.shape)    # torch.Size([32, 256, 192])
         # print('feat_DCT3.shape', feat_DCT.shape)    # torch.Size([32, 256, 192])
@@ -430,11 +416,13 @@ class CANet(nn.Module):
         # print('origin_feat_DCT.shape', origin_feat_DCT.shape) # torch.Size([32, 192, 28, 28])
         # print('feat_DCT7.shape', feat_DCT.shape) # torch.Size([32, 192, 28, 28])
 
+
         #using 1*1conv to change the numbers of the channel of DCT_x
         feat_DCT2 = self.con1_2(feat_DCT)
         feat_DCT3 = self.con1_3(feat_DCT)
         feat_DCT4 = self.con1_4(feat_DCT)
         feat_DCT5 = self.con1_5(feat_DCT)
+
         # print('feat_DCT2.shape',feat_DCT2.shape) # torch.Size([32, 64, 28, 28])
         # print('feat_DCT3.shape',feat_DCT3.shape) # torch.Size([32, 64, 28, 28])
         # print('feat_DCT4.shape',feat_DCT4.shape) # torch.Size([32, 64, 28, 28])
@@ -455,6 +443,17 @@ class CANet(nn.Module):
         # print('feat_DCT4.shape',feat_DCT4.shape) # torch.Size([32, 64, 14, 14])
         # print('feat_DCT5.shape',feat_DCT5.shape) # torch.Size([32, 64, 7, 7])
 
+        # ----------------------------这里的缩减channel是为什么？？？这里需要参考dct的论文
+        x2 = self.conv_l2(x2)
+        f1 = self.conv_l3(f1)
+        f2 = self.conv_l4(f2)
+        f3 = self.conv_l5(f3)
+
+        # print('====>x2.shape',x2.shape) #torch.Size([32, 64, 56, 56]) => 512
+        # print('====>f1.shape',f1.shape) #torch.Size([32, 64, 28, 28]) => 512
+        # print('====>f2.shape',f2.shape) # torch.Size([32, 64, 14, 14]) => 1024
+        # print('====>f3.shape',f3.shape) # torch.Size([32, 64, 7, 7])      => 2048
+
         #feature fusion
         x2 = self.PAM2(x2, feat_DCT2)
         f1 = self.PAM3(f1, feat_DCT3)
@@ -465,65 +464,59 @@ class CANet(nn.Module):
         # print('f2.shape',f2.shape) # torch.Size([32, 64, 14, 14])
         # print('f3.shape',f3.shape) # torch.Size([32, 64, 7, 7])
 
+
         # feat2 = self.conv_r2(x2)
         feat3 = self.conv_r3(f1)
         feat4 = self.conv_r4(f2)
         feat5 = self.conv_r5(f3)
         # print('feat2.shape',feat2.shape) # torch.Size([32, 64, 56, 56])
-        # print('feat3.shape',feat3.shape) # torch.Size([32, 64, 28, 28])
-        # print('feat4.shape',feat4.shape) # torch.Size([32, 64, 14, 14])
-        # print('feat5.shape',feat5.shape) # torch.Size([32, 64, 7, 7])
-# ------------------------------这里我直接折叠了
-#         #connect feat5 and feat4#
-#         size4 = feat4.size()[2:]
-#         feat5 = torch.nn.functional.interpolate(feat5, size=size4, mode='bilinear', align_corners=True)
-#         feat4 = torch.cat((feat4, feat5), 1)
-#         feat4 = self.conv_decoder1(feat4)
-#         # print('feat4.shape', feat4.shape)  # torch.Size([32, 64, 14, 14])
-#
-#         # connect feat4 and feat3#
-#         size3 = feat3.size()[2:]
-#         feat4 = torch.nn.functional.interpolate(feat4, size=size3, mode='bilinear', align_corners=True)
-#         feat3 = torch.cat((feat3, feat4), 1)
-#         feat3 = self.conv_decoder2(feat3)
-#         # print('feat3.shape', feat3.shape)  # torch.Size([32, 64, 28, 28])
-#         # connect feat3 and feat2#
-#         size2 = feat2.size()[2:]
-#         feat3 = torch.nn.functional.interpolate(feat3, size=size2, mode='bilinear', align_corners=True)
-#         feat2 = torch.cat((feat2, feat3), 1)
-#         feat2 = self.conv_decoder3(feat2)
-#         # print('feat2.shape', feat2.shape)  # torch.Size([32, 64, 56, 56])
-#
-#         #output
-#         sizex = x.size()[2:]
-#         output = self.conv_out(feat2)
-#         output_1 = self.conv_out(feat3)
-#         output_2 = self.conv_out(feat4)
-#         output_3 = self.conv_out(feat5)
-#         # output_1 = torch.nn.functional.interpolate(output_1, size=sizex, mode='bilinear', align_corners=True)
-#         # output_2 = torch.nn.functional.interpolate(output_2, size=sizex, mode='bilinear', align_corners=True)
-#         # output_3 = torch.nn.functional.interpolate(output_3, size=sizex, mode='bilinear', align_corners=True)
-#         # print('output.shape', output.shape)     # torch.Size([32, 1, 56, 56])
-#         # print('output_1.shape', output_1.shape) # torch.Size([32, 1, 56, 56])
-#         # print('output_2.shape', output_2.shape) # torch.Size([32, 1, 28, 28])
-#         # print('output_3.shape', output_3.shape) # torch.Size([32, 1, 14, 14])
-#
-#         # print('output_1.interpolate.shape', output_1.shape) # torch.Size([32, 1, 112, 112])
-#         # print('output_2.interpolate.shape', output_2.shape) # torch.Size([32, 1, 112, 112])
-#         # print('output_3.interpolate.shape', output_3.shape) # torch.Size([32, 1, 112, 112])
-#
+        # print('feat3.shape',feat3.shape) # torch.Size([32, 512, 28, 28])
+        # print('feat4.shape',feat4.shape) # torch.Size([32, 1024, 14, 14])
+        # print('feat5.shape',feat5) # torch.Size([32, 2048, 7, 7])、
+
 
         # -------------------------------------------------------------------------------------------------
         f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
         f22 = self.backbone.conv_block2(feat4).view(-1, self.num_ftrs // 2)
         f33 = self.backbone.conv_block3(feat5).view(-1, self.num_ftrs // 2)
+
         f33_b = self.backbone.b3(f33)
         output = self.backbone.fc(f33_b)
         f44 = torch.cat((f11, f22, f33), -1)
+
         f44_b = self.backbone.hashing_concat(f44)
+
         return self.alpha1, self.alpha2, f44_b, output, feats
+    def forward_vanilla_isZoom(self, x):
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x1 = self.backbone.maxpool(x)
+
+        x2 = self.backbone.layer1(x1)
+        f1 = self.backbone.layer2(x2)
+        f2 = self.backbone.layer3(f1)
+        f3 = self.backbone.layer4(f2)
+        feats = f3
+
+        f11 = self.backbone.conv_block1(f1).view(-1, self.num_ftrs // 2)
 
 
+        f22 = self.backbone.conv_block2(f2).view(-1, self.num_ftrs // 2)
+        f22_b = self.backbone.b2(f22)
+
+        f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
+        f33_b = self.backbone.b3(f33)
+        y33 = self.backbone.fc(f33_b)
+
+        f44 = torch.cat((f11, f22, f33), -1)
+        f44_b = self.backbone.hashing_concat(f44)
+
+        # x = self.backbone.avgpool(feats)
+        # x = torch.flatten(x, 1)
+        # y_x = self.backbone.fc_x(x)
+
+        return self.alpha1, self.alpha2, f44_b, y33, feats
 # Model Setting
 class BasicConv(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1, groups=1, relu=True, bn=True, bias=False):

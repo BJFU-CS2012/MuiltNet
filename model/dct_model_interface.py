@@ -11,7 +11,8 @@ class HInterface(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = CANet(self.config)
+        self.model = CANet(self.config,isZoom=False)
+        self.model2 = CANet(self.config,isZoom=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
@@ -19,7 +20,6 @@ class HInterface(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, train_batch, batch_idx):
-        # print('++++++++++++++++training_step+++++++++++++++++++\n')
         x, ycbcr_image, y, pseudocode = train_batch
         x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
@@ -28,13 +28,13 @@ class HInterface(pl.LightningModule):
         ycbcr_image = ycbcr_image.reshape(num_batchsize, 3, size // 8, 8, size // 8, 8).permute(0, 2, 4, 1, 3, 5)
         ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho')
         DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
+
         input = (x, DCT_x)
         alpha1, alpha2, f44_b, y33, feats = self.model(input)
         with torch.no_grad():
             zoom_images= batch_augment(x, feats, mode='zoom')
 
-        input_ycbcr = (zoom_images, DCT_x)
-        _, _, _, y_zoom, _ = self.model(input_ycbcr)
+        _, _, _, y_zoom, _ = self.model2(zoom_images)
 
         y_att = (y33 + y_zoom)/2
         loss_y = smooth_CE(y_att, y, 0.9)
@@ -58,12 +58,10 @@ class HInterface(pl.LightningModule):
         size = ycbcr_image.shape[2]
 
         ycbcr_image = ycbcr_image.reshape(num_batchsize, 3, size // 8, 8, size // 8, 8).permute(0, 2, 4, 1, 3, 5)
-        ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho')
+        ycbcr_image = DCT.dct_2d(ycbcr_image, norm='ortho') # torch.Size([32, 28, 28, 3, 8, 8])
         DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
 
         input = (x,DCT_x)
-        # print('ccccccccccccccccccccccccccccccccccccccccccccc\n', x.shape) # torch.Size([32, 3, 224, 224])
-        # print('ccccccccccccccccccccccccccccccccccccccccccccc\n', DCT_x.shape) # torch.Size([32, 192, 28, 28])
         _, _, f44_b, _, _ = self.model(input)
 
         outputs = {'output_code': f44_b,
@@ -96,8 +94,6 @@ class HInterface(pl.LightningModule):
         query_code = torch.cat(query_code)
         query_label = torch.cat(query_label)
 
-        print("gallery_code:", gallery_code.size())
-        print("query_code:", query_code.size())
 
         gallery_onehot = F.one_hot(gallery_label).to(torch.float)
         query_onehot = F.one_hot(query_label).to(torch.float)

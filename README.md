@@ -42,3 +42,18 @@ If you find our work inspiring or use our codebase in your research, please cite
       primaryClass={cs.CV}
 }
 ```
+
+## 代码运行指令
+```
+mkdir /hy-tmp/workspace
+cp /hy-public/CUB2002011/CUB_200_2011.tgz  /hy-tmp/workspace
+cd /hy-tmp/workspace
+tar -zxvf CUB_200_2011.tgz
+
+cd /hy-tmp/FG-CNET-master/
+pip install pyTorch-Lightning==1.9.4
+pip install opencv-python
+
+chmod 777 build.sh
+
+```
