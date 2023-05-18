@@ -68,7 +68,7 @@ def batch_augment(images, feature_map, mode='zoom'):
         xs_hm = nn.ReplicationPad2d(padding_size)(xs)
         grid = create_grid(x=xs_hm, grid_size=grid_size, padding_size=padding_size, P_basis=P_basis,
                            global_size=global_size, filter=filter, input_size_net=imgH).to(images.device)
-        x_sampled_zoom = F.grid_sample(images, grid)
+        x_sampled_zoom = F.grid_sample(images, grid, align_corners=False)
         zoom_images = x_sampled_zoom
 
         return zoom_images

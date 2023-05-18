@@ -38,9 +38,11 @@ class FG_dataset(Dataset):
     def __getitem__(self, index):
         filename, label, flag = self.imgs[index]
         img_path = os.path.join(self.root_dir, filename)
+
         img = self.loader(img_path)
         if self.transform is not None:
             img = self.transform(img)
+
         if self.config is not None:
             return img, label, self.pseudo_code[index]
         else:

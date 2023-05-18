@@ -35,6 +35,8 @@ class Resize(object):
 
 def default_loader(path):
     return Image.open(path).convert('RGB')
+def default_loader_ycbcr(path):
+    return Image.open(path).convert('YCbCr')
 class ToTensor(object):
     def __call__(self, ycbcr_image):
         ycbcr_image = torch.from_numpy(ycbcr_image)
@@ -42,12 +44,13 @@ class ToTensor(object):
         return ycbcr_image
 
 class FG_dataset(Dataset):
-    def __init__(self, csv_filename, root_dir=None, config=None, data_type='train', transform=None, loader=default_loader):
+    def __init__(self, csv_filename, root_dir=None, config=None, data_type='train', transform=None, loader=default_loader, loader_ycbcr = default_loader_ycbcr ):
         self.root_dir = root_dir
         self.data_type = data_type
         self.filename = csv_filename
         self.transform = transform
         self.loader = loader
+        self.loader_ycbcr = loader_ycbcr
         self.config = config
         self.totensor = ToTensor()
         self.resize = Resize(224, 224)
@@ -71,12 +74,20 @@ class FG_dataset(Dataset):
     def __getitem__(self, index):
         filename, label, flag = self.imgs[index]
         img_path = os.path.join(self.root_dir, filename)
-        image = cv2.imread(img_path)[:,:,::-1].astype(np.float32)
-        image = self.resize(image)
-        ycbcr_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
-        image = self.normalize(image)
-        img = self.totensor(image)
-        ycbcr_image = self.totensor(ycbcr_image)
+
+        # image = cv2.imread(img_path)[:,:,::-1].astype(np.float32)
+        # image = self.resize(image)
+        # ycbcr_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
+        # image = self.normalize(image)
+        # img = self.totensor(image)
+        # ycbcr_image = self.totensor(ycbcr_image)
+
+        image = self.loader(img_path)
+        ycbcr_image = self.loader_ycbcr(img_path)
+        if self.transform is not None:
+            img = self.transform(image)
+            ycbcr_image = self.transform(ycbcr_image)
+
         if self.config is not None:
             return img,ycbcr_image, label, self.pseudo_code[index]
         else:

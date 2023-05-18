@@ -12,7 +12,14 @@ def calc_map_k(qB, rB, query_L, retrieval_L, k=None):
     # rB: {-1,+1}^{nxq}
     # query_L: {0,1}^{mxl}
     # retrieval_L: {0,1}^{nxl}
+    num_query_qB = qB.size(0)
+    num_query_rB = rB.size(0)
     num_query = query_L.size(0)
+    num_query_c = retrieval_L.size(0)
+    # print('retrieval_L',num_query_c) 5994
+    # print('num_query',num_query) 5794
+    # print('num_query_rB',num_query_rB) 5994
+    # print('num_query_qB',num_query_qB) 5794
     map = 0
     if k is None:
         k = retrieval_L.size(0)
@@ -33,5 +40,7 @@ def calc_map_k(qB, rB, query_L, retrieval_L, k=None):
         count = torch.arange(1, total + 1).type(torch.float32)
         tindex = torch.nonzero(gnd, as_tuple=False)[:total].squeeze().type(torch.float32) + 1.0
         map = map + torch.mean(count.to(tindex.device) / tindex)
+    print('*********************map',map)
+    print('*********************num_query',num_query)
     map = map / num_query
     return map

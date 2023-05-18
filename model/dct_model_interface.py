@@ -20,6 +20,7 @@ class HInterface(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, train_batch, batch_idx):
+
         x, ycbcr_image, y, pseudocode = train_batch
         x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
@@ -37,6 +38,7 @@ class HInterface(pl.LightningModule):
         _, _, _, y_zoom, _ = self.model2(zoom_images)
 
         y_att = (y33 + y_zoom)/2
+        # y_att = y33
         loss_y = smooth_CE(y_att, y, 0.9)
         loss_code = F.mse_loss(f44_b, pseudocode)
 
@@ -52,6 +54,7 @@ class HInterface(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
+
         x, ycbcr_image, y, flag = val_batch
         x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]

@@ -289,9 +289,13 @@ class CANet(nn.Module):
             self.PAM5 = PAM(in_dim=64)
 
             self.conv_r2 = two_ConvBnRule(64)
-            self.conv_r3 = two_ConvBnRule_back(512)
-            self.conv_r4 = two_ConvBnRule_back(1024)
-            self.conv_r5 = two_ConvBnRule_back(2048)
+            # self.conv_r3 = two_ConvBnRule_back(512)
+            # self.conv_r4 = two_ConvBnRule_back(1024)
+            # self.conv_r5 = two_ConvBnRule_back(2048)
+
+            self.conv_r3 = nn.Conv2d(in_channels=64, out_channels=512, kernel_size=1)
+            self.conv_r4 = nn.Conv2d(in_channels=64, out_channels=1024, kernel_size=1)
+            self.conv_r5 = nn.Conv2d(in_channels=64, out_channels=2048, kernel_size=1)
 
             self.conv_l2 = two_ConvBnRule(256)
             self.conv_l3 = two_ConvBnRule(512)

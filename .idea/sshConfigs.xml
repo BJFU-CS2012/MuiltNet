@@ -4,7 +4,7 @@
     <configs>
       <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="19381dac-1bed-4fc1-8202-4b856336c13c" port="17972" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
       <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="f0201c25-13a9-49c8-80e6-ea8dba357d82" port="26324" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
-      <sshConfig authType="PASSWORD" host="i-2.gpushare.com" id="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" port="21720" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
+      <sshConfig authType="PASSWORD" host="i-2.gpushare.com" id="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" port="58038" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
     </configs>
   </component>
 </project>
