@@ -22,7 +22,7 @@ class HInterface(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
 
         x, ycbcr_image, y, pseudocode = train_batch
-        x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
+        # x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
         size = ycbcr_image.shape[2]
 
@@ -35,7 +35,8 @@ class HInterface(pl.LightningModule):
         with torch.no_grad():
             zoom_images= batch_augment(x, feats, mode='zoom')
 
-        _, _, _, y_zoom, _ = self.model2(zoom_images)
+        input2 = (zoom_images, DCT_x)
+        _, _, _, y_zoom, _ = self.model(input2)
 
         y_att = (y33 + y_zoom)/2
         # y_att = y33
@@ -56,7 +57,7 @@ class HInterface(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
 
         x, ycbcr_image, y, flag = val_batch
-        x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
+        # x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
         size = ycbcr_image.shape[2]
 

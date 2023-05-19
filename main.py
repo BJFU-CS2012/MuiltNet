@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # batch-size
     parser.add_argument('--batch_size', default=128, type=int, help='batch size for training')
     # epoch
-    parser.add_argument('--epoch', default=30, type=int, help='epoch for training')
+    parser.add_argument('--epoch', default=300, type=int, help='epoch for training')
     # gpu
     parser.add_argument('--gpu', default=[0], help='gpu-id')
     # num_workers

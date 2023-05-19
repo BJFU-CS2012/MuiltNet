@@ -140,30 +140,10 @@ class two_ConvBnRule_back(nn.Module):
         )
         self.BN1 = nn.BatchNorm2d(out_chan)
         self.relu1 = nn.ReLU(inplace=True)
-
-        self.conv2 = nn.Conv2d(
-            in_channels=out_chan,
-            out_channels=out_chan,
-            kernel_size=3,
-            padding=1
-        )
-        self.BN2 = nn.BatchNorm2d(out_chan)
-        self.relu2 = nn.ReLU(inplace=True)
-
     def forward(self, x, mid=False):
         feat = self.conv1(x)
         feat = self.BN1(feat)
         feat = self.relu1(feat)
-
-        if mid:
-            feat_mid = feat
-
-        feat = self.conv2(feat)
-        feat = self.BN2(feat)
-        feat = self.relu2(feat)
-
-        if mid:
-            return feat, feat_mid
         return feat
 
 def Seg():
@@ -289,13 +269,13 @@ class CANet(nn.Module):
             self.PAM5 = PAM(in_dim=64)
 
             self.conv_r2 = two_ConvBnRule(64)
-            # self.conv_r3 = two_ConvBnRule_back(512)
-            # self.conv_r4 = two_ConvBnRule_back(1024)
-            # self.conv_r5 = two_ConvBnRule_back(2048)
+            self.conv_r3 = two_ConvBnRule_back(512)
+            self.conv_r4 = two_ConvBnRule_back(1024)
+            self.conv_r5 = two_ConvBnRule_back(2048)
 
-            self.conv_r3 = nn.Conv2d(in_channels=64, out_channels=512, kernel_size=1)
-            self.conv_r4 = nn.Conv2d(in_channels=64, out_channels=1024, kernel_size=1)
-            self.conv_r5 = nn.Conv2d(in_channels=64, out_channels=2048, kernel_size=1)
+            # self.conv_r3 = nn.Conv2d(in_channels=64, out_channels=512, kernel_size=1)
+            # self.conv_r4 = nn.Conv2d(in_channels=64, out_channels=1024, kernel_size=1)
+            # self.conv_r5 = nn.Conv2d(in_channels=64, out_channels=2048, kernel_size=1)
 
             self.conv_l2 = two_ConvBnRule(256)
             self.conv_l3 = two_ConvBnRule(512)
