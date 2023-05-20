@@ -57,6 +57,7 @@ class HInterface(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
 
         x, ycbcr_image, y, flag = val_batch
+        print('validation_step_flag',flag )
         # x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
         size = ycbcr_image.shape[2]
@@ -87,6 +88,12 @@ class HInterface(pl.LightningModule):
         for i in range(len(outputs)):
             flag_gallary = outputs[i]['flag'] == 0
             flag_query = outputs[i]['flag'] == 1
+
+            # 看下这两个是不是二进制代码
+            print('outputs[i][][flag_gallary]',outputs[i]['output_code'][flag_gallary])
+            print('outputs[i][][[flag_query]]',outputs[i]['output_code'][[flag_query]])
+
+
             gallery_code.append(outputs[i]['output_code'][flag_gallary])
             gallery_label.append(outputs[i]['label'][flag_gallary])
             query_code.append(outputs[i]['output_code'][flag_query])
