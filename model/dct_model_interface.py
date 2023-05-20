@@ -87,7 +87,6 @@ class HInterface(pl.LightningModule):
         for i in range(len(outputs)):
             flag_gallary = outputs[i]['flag'] == 0
             flag_query = outputs[i]['flag'] == 1
-
             gallery_code.append(outputs[i]['output_code'][flag_gallary])
             gallery_label.append(outputs[i]['label'][flag_gallary])
             query_code.append(outputs[i]['output_code'][flag_query])

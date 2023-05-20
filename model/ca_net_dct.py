@@ -158,8 +158,9 @@ def Seg():
                  57: 60, 58: 61, 59: 54, 60: 47, 61: 55, 62: 62, 63: 63}
     a = torch.zeros(1, 64, 1, 1)
 
-    for i in range(0, 32):
-        a[0, dict[i+32], 0, 0] = 1
+    for i in range(0, 64):
+        # a[0, dict[i+32], 0, 0] = 1
+        a[0, dict[i], 0, 0] = 1
 
     return a
 
