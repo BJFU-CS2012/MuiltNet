@@ -158,9 +158,9 @@ def Seg():
                  57: 60, 58: 61, 59: 54, 60: 47, 61: 55, 62: 62, 63: 63}
     a = torch.zeros(1, 64, 1, 1)
 
-    for i in range(0, 64):
-        # a[0, dict[i+32], 0, 0] = 1
-        a[0, dict[i], 0, 0] = 1
+    for i in range(0, 32):
+        a[0, dict[i+32], 0, 0] = 1
+        # a[0, dict[i], 0, 0] = 1
 
     return a
 
@@ -315,16 +315,16 @@ class CANet(nn.Module):
                 nn.BatchNorm1d(self.num_ftrs // 2 * 3, affine=True),
                 nn.Linear(self.num_ftrs // 2 * 3, self.feature_size),
                 nn.BatchNorm1d(self.feature_size, affine=True),
-                nn.ELU(inplace=True),
+                # nn.ELU(inplace=True),
                 nn.Linear(self.feature_size, bits),
             )
             # print('after\n',self.backbone)
-
+    # ----------------------------------FISH
+            self.backbone.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            self.backbone.fc_c = nn.Linear(512, classlen)
+            self.backbone.b = nn.Linear(classlen, bits)
     def forward(self, x):
-        if self.isZoom:
-            return self.forward_vanilla_isZoom(x)
-        else:
-            return self.forward_vanilla(x)
+        return self.forward_vanilla(x)
     def forward_vanilla(self, input):
 
         x,DCT_x = input
@@ -358,7 +358,8 @@ class CANet(nn.Module):
         high = rearrange(high, 'b n h w -> b n (h w)')
         low = rearrange(low, 'b n h w -> b n (h w)')
 
-        high = self.high_band(high)
+
+        high = self.high_band(high) #就这一步会出现nan
         low = self.low_band(low)
 
         y_h, b_h, r_h = torch.split(high, 32, 1)
@@ -377,6 +378,7 @@ class CANet(nn.Module):
         feat_DCT = feat_DCT.transpose(1, 2)
         feat_DCT = rearrange(feat_DCT, 'b n (h w) -> b n h w', h=16)
         feat_DCT = torch.nn.functional.interpolate(feat_DCT, size=(h, w))
+
         feat_DCT = origin_feat_DCT + feat_DCT               # rgb + freq
 
 
@@ -389,7 +391,6 @@ class CANet(nn.Module):
         feat_DCT5 = self.con1_5(feat_DCT)
 
 
-
         feat_DCT2 = torch.nn.functional.interpolate(feat_DCT2,size=x2.size()[2:],mode='bilinear',align_corners=True)
         feat_DCT3 = torch.nn.functional.interpolate(feat_DCT3,size=f1.size()[2:],mode='bilinear',align_corners=True)
         feat_DCT4 = torch.nn.functional.interpolate(feat_DCT4,size=f2.size()[2:],mode='bilinear',align_corners=True)
@@ -400,8 +401,6 @@ class CANet(nn.Module):
         f1 = self.conv_l3(f1)
         f2 = self.conv_l4(f2)
         f3 = self.conv_l5(f3)
-
-
 
         #feature fusion
         x2 = self.PAM2(x2, feat_DCT2)
@@ -416,6 +415,24 @@ class CANet(nn.Module):
         feat4 = self.conv_r4(f2)
         feat5 = self.conv_r5(f3)
 
+        A3 = torch.sum(feat3.detach(), dim=1, keepdim=True)
+        a = torch.mean(A3, dim=[2, 3], keepdim=True)
+        M = (A3 > a).float().detach() + (A3 < a).float().detach() * 0.5  # 0.1
+        # print(M.size())
+        feat3 = feat3 * M
+
+        A4 = torch.sum(feat4.detach(), dim=1, keepdim=True)
+        a = torch.mean(A4, dim=[2, 3], keepdim=True)
+        M = (A4 > a).float().detach() + (A4 < a).float().detach() * 0.5  # 0.1
+        # print(M.size())
+        feat4 = feat4 * M
+
+        A5 = torch.sum(feat5.detach(), dim=1, keepdim=True)
+        a = torch.mean(A5, dim=[2, 3], keepdim=True)
+        M = (A5 > a).float().detach() + (A5 < a).float().detach() * 0.5  # 0.1
+        # print(M.size())
+        feat5 = feat5 * M
+
         # -------------------------------------------------------------------------------------------------
         f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
         f22 = self.backbone.conv_block2(feat4).view(-1, self.num_ftrs // 2)
@@ -425,39 +442,18 @@ class CANet(nn.Module):
         output = self.backbone.fc(f33_b)
         f44 = torch.cat((f11, f22, f33), -1)
 
+        # f44_b = self.backbone.hashing_concat(f44)
+
+        x_mask = torch.ones(output.size()).detach().cuda() * 0.7#
+        for i in range(x_mask.size()[0]):
+            values, indices = torch.topk(output[i],3)
+            x_mask[i, torch.argmax(output[i])] = 1
+
+        output = output * x_mask
+        # f44_b = self.backbone.b(f44)
         f44_b = self.backbone.hashing_concat(f44)
+        return self.alpha1, self.alpha2, f44_b, output, feats,f44
 
-        return self.alpha1, self.alpha2, f44_b, output, feats
-    def forward_vanilla_isZoom(self, x):
-        x = self.backbone.conv1(x)
-        x = self.backbone.bn1(x)
-        x = self.backbone.relu(x)
-        x1 = self.backbone.maxpool(x)
-
-        x2 = self.backbone.layer1(x1)
-        f1 = self.backbone.layer2(x2)
-        f2 = self.backbone.layer3(f1)
-        f3 = self.backbone.layer4(f2)
-        feats = f3
-
-        f11 = self.backbone.conv_block1(f1).view(-1, self.num_ftrs // 2)
-
-
-        f22 = self.backbone.conv_block2(f2).view(-1, self.num_ftrs // 2)
-        f22_b = self.backbone.b2(f22)
-
-        f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
-        f33_b = self.backbone.b3(f33)
-        y33 = self.backbone.fc(f33_b)
-
-        f44 = torch.cat((f11, f22, f33), -1)
-        f44_b = self.backbone.hashing_concat(f44)
-
-        # x = self.backbone.avgpool(feats)
-        # x = torch.flatten(x, 1)
-        # y_x = self.backbone.fc_x(x)
-
-        return self.alpha1, self.alpha2, f44_b, y33, feats
 # Model Setting
 class BasicConv(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1, groups=1, relu=True, bn=True, bias=False):

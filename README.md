@@ -57,3 +57,9 @@ pip install opencv-python
 chmod 777 build.sh
 
 ```
+
+## 实验结果
+取后64位：0.8074
+取全部位：0.8007
+修改为GELU：0.8093
+修改了output：0.8093

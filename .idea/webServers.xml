@@ -24,9 +24,16 @@
         </fileTransfer>
       </webServer>
       <webServer id="50649125-0d3a-4312-a7be-b226a48554d5" name="21720">
-        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-2.gpushare.com" port="58038" sshConfigId="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" sshConfig="root@i-2.gpushare.com:58038 password">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="45977" sshConfigId="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" sshConfig="root@i-1.gpushare.com:45977 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="3fcbb098-fedc-48d4-a9eb-1f1bc5b0ed9a" name="wwh">
+        <fileTransfer rootFolder="/home/wwh/zzw/testing" accessType="SFTP" host="172.26.249.179" port="22" sshConfigId="96e5164b-21b5-45ef-a876-99bebe18c3c6" sshConfig="wwh@172.26.249.179:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>

@@ -12,7 +12,6 @@ class HInterface(pl.LightningModule):
         super().__init__()
         self.config = config
         self.model = CANet(self.config,isZoom=False)
-        self.model2 = CANet(self.config,isZoom=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
@@ -31,12 +30,12 @@ class HInterface(pl.LightningModule):
         DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
 
         input = (x, DCT_x)
-        alpha1, alpha2, f44_b, y33, feats = self.model(input)
+        alpha1, alpha2, f44_b, y33, feats, f44 = self.model(input)
         with torch.no_grad():
             zoom_images= batch_augment(x, feats, mode='zoom')
 
         input2 = (zoom_images, DCT_x)
-        _, _, _, y_zoom, _ = self.model(input2)
+        _, _, _, y_zoom, _ ,_ = self.model(input2)
 
         y_att = (y33 + y_zoom)/2
         # y_att = y33
@@ -57,7 +56,7 @@ class HInterface(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
 
         x, ycbcr_image, y, flag = val_batch
-        print('validation_step_flag',flag )
+
         # x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]
         size = ycbcr_image.shape[2]
@@ -67,7 +66,7 @@ class HInterface(pl.LightningModule):
         DCT_x = ycbcr_image.reshape(num_batchsize, size // 8, size // 8, -1).permute(0, 3, 1, 2)
 
         input = (x,DCT_x)
-        _, _, f44_b, _, _ = self.model(input)
+        _, _, f44_b, _, _, _ = self.model(input)
 
         outputs = {'output_code': f44_b,
                    'label': y,
@@ -88,12 +87,6 @@ class HInterface(pl.LightningModule):
         for i in range(len(outputs)):
             flag_gallary = outputs[i]['flag'] == 0
             flag_query = outputs[i]['flag'] == 1
-
-            # 看下这两个是不是二进制代码
-            print('outputs[i][][flag_gallary]',outputs[i]['output_code'][flag_gallary])
-            print('outputs[i][][[flag_query]]',outputs[i]['output_code'][[flag_query]])
-
-
             gallery_code.append(outputs[i]['output_code'][flag_gallary])
             gallery_label.append(outputs[i]['label'][flag_gallary])
             query_code.append(outputs[i]['output_code'][flag_query])
@@ -103,7 +96,6 @@ class HInterface(pl.LightningModule):
         gallery_label = torch.cat(gallery_label)
         query_code = torch.cat(query_code)
         query_label = torch.cat(query_label)
-
 
         gallery_onehot = F.one_hot(gallery_label).to(torch.float)
         query_onehot = F.one_hot(query_label).to(torch.float)
