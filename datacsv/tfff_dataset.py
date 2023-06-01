@@ -49,12 +49,12 @@ class FG_dataset(Dataset):
 
         if self.transform is not None:
             img_448 = self.transform(img)
-        img = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(img)
+        img = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(img_448)
         img_448_rgb = img_448 * 255
         img_448_ycrcb = DCT.rgb2ycrcb(img_448_rgb)  # YCrCb transformation
         img_448_ycrcb_tensor = torch.unsqueeze(img_448_ycrcb, dim=0)  # DCT transformation
         dct_img = self.DCT(img_448_ycrcb_tensor).squeeze()
-        if self.train:
+        if self.data_type == 'train':
             if self.num_channels == 192:
                 dct_img = transforms.Normalize(mean_train_dct_192_bird, std_train_dct_192_bird)(dct_img)
             if self.num_channels == 64:

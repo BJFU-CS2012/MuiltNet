@@ -16,15 +16,15 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
-      <webServer id="e10332b5-133e-4d6c-81c3-fa45eb1f8deb" name="24G">
-        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="26324" sshConfigId="f0201c25-13a9-49c8-80e6-ea8dba357d82" sshConfig="root@i-1.gpushare.com:26324 password">
+      <webServer id="e10332b5-133e-4d6c-81c3-fa45eb1f8deb" name="24Gddc">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-2.gpushare.com" port="31082" sshConfigId="eea19e70-1639-4a8f-b317-12dd0a8080f6" sshConfig="24Gddc">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>
-      <webServer id="50649125-0d3a-4312-a7be-b226a48554d5" name="21720">
-        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="45977" sshConfigId="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" sshConfig="root@i-1.gpushare.com:45977 password">
+      <webServer id="50649125-0d3a-4312-a7be-b226a48554d5" name="24G748">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-2.gpushare.com" port="45443" sshConfigId="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" sshConfig="24G748">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
@@ -34,6 +34,13 @@
         <fileTransfer rootFolder="/home/wwh/zzw/testing" accessType="SFTP" host="172.26.249.179" port="22" sshConfigId="96e5164b-21b5-45ef-a876-99bebe18c3c6" sshConfig="wwh@172.26.249.179:22 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="f13d1050-5821-40c9-b18a-d142cd510eba" name="24G15dc">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-2.gpushare.com" port="38491" sshConfigId="ac38ebf8-c0a1-40d2-bc4e-db96287b9abd" sshConfig="24G15dc">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>

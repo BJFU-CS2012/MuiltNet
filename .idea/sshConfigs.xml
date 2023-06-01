@@ -6,7 +6,15 @@
         <option name="customName" value="root@i-1.gpushare.com:14be" />
       </sshConfig>
       <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="f0201c25-13a9-49c8-80e6-ea8dba357d82" port="26324" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
-      <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" port="45977" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
+      <sshConfig authType="PASSWORD" host="i-2.gpushare.com" id="97adb2ac-2fda-4fef-8780-2b1d2eca03e4" port="45443" customName="24G748" nameFormat="CUSTOM" username="root" useOpenSSHConfig="true">
+        <option name="customName" value="24G748" />
+      </sshConfig>
+      <sshConfig authType="PASSWORD" host="i-2.gpushare.com" id="eea19e70-1639-4a8f-b317-12dd0a8080f6" port="31082" customName="24Gddc" nameFormat="CUSTOM" username="root" useOpenSSHConfig="true">
+        <option name="customName" value="24Gddc" />
+      </sshConfig>
+      <sshConfig authType="PASSWORD" host="i-2.gpushare.com" id="ac38ebf8-c0a1-40d2-bc4e-db96287b9abd" port="38491" customName="24G15dc" nameFormat="CUSTOM" username="root" useOpenSSHConfig="true">
+        <option name="customName" value="24G15dc" />
+      </sshConfig>
     </configs>
   </component>
 </project>

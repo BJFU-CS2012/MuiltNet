@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # epoch
     parser.add_argument('--epoch', default=300, type=int, help='epoch for training')
     # gpu
-    parser.add_argument('--gpu', default=[0], help='gpu-id')
+    parser.add_argument('--gpu', default=[1], help='gpu-id')
     # num_workers
     parser.add_argument('--num_workers', default=8, type=int, help='number workers for training')
     # model

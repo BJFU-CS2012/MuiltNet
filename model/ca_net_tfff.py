@@ -77,7 +77,7 @@ class CANet(nn.Module):
         self.config = config
         bits = self.config.code_length
         classlen = self.config.classlen
-
+        self.in_planes = 64
         if self.config.model_name == 'resnet50':
             self.backbone = torchvision.models.resnet50(pretrained=True)
             # print('before\n', self.backbone)
@@ -101,21 +101,21 @@ class CANet(nn.Module):
 
             # stage 1
             self.backbone.conv_block1 = nn.Sequential(
-                BasicConv(self.num_ftrs // 4, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.num_ftrs // 8, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
                 BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
                 nn.AdaptiveMaxPool2d(1),
             )
 
             # stage 2
             self.backbone.conv_block2 = nn.Sequential(
-                BasicConv(self.num_ftrs // 2, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.num_ftrs // 8, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
                 BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
                 nn.AdaptiveMaxPool2d(1),
             )
 
             # stage 3
             self.backbone.conv_block3 = nn.Sequential(
-                BasicConv(self.num_ftrs, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.num_ftrs // 8, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
                 BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
                 nn.AdaptiveMaxPool2d(1),
             )
@@ -144,10 +144,11 @@ class CANet(nn.Module):
             self.register_parameter('alpha_beta1', self.alpha_beta3)
             self.alpha_beta4 = nn.Parameter(torch.ones(2, requires_grad=True))
             self.register_parameter('alpha_beta1', self.alpha_beta4)
+
     def forward(self, x):
         return self.forward_vanilla(x)
 
-    def forward_vanilla(self, x):
+    def forward_vanilla(self, input):
         x_t, x_f = input
         x_f = self.upsample(x_f)
 
@@ -157,36 +158,33 @@ class CANet(nn.Module):
         out_t = self.backbone.maxpool(x)
 
         out_t, out_f = self.backbone.layer1([out_t, x_f])
-        alpha_beta1 = F.softmax(self.alpha_beta, dim=0)
+        alpha_beta1 = F.softmax(self.alpha_beta1, dim=0)
         x1 = alpha_beta1[0] * out_t.detach() + alpha_beta1[1] * out_f.detach()
 
         out_t, out_f = self.backbone.layer2([out_t, out_f])
-        alpha_beta2 = F.softmax(self.alpha_beta, dim=0)
+        alpha_beta2 = F.softmax(self.alpha_beta2, dim=0)
         f1 = alpha_beta2[0] * out_t.detach() + alpha_beta2[1] * out_f.detach()
 
         out_t, out_f = self.backbone.layer3([out_t, out_f])
-        alpha_beta3 = F.softmax(self.alpha_beta, dim=0)
+        alpha_beta3 = F.softmax(self.alpha_beta3, dim=0)
         f2 = alpha_beta3[0] * out_t.detach() + alpha_beta3[1] * out_f.detach()
 
         out_t, out_f = self.backbone.layer4([out_t, out_f])
-        alpha_beta4 = F.softmax(self.alpha_beta, dim=0)
+        alpha_beta4 = F.softmax(self.alpha_beta4, dim=0)
         f3 = alpha_beta4[0] * out_t.detach() + alpha_beta4[1] * out_f.detach()
 
         feats = f3
 
         f11 = self.backbone.conv_block1(f1).view(-1, self.num_ftrs // 2)
         f11_c = self.backbone.conv_block1(f1)
-        print('f11_c.shape', f11_c.shape)  # torch.Size([32, 1024, 1, 1])
-        print('f11.shape',f11.shape) # torch.Size([32, 1024])
         f11_b = self.backbone.b1(f11)
 
         f22 = self.backbone.conv_block2(f2).view(-1, self.num_ftrs // 2)
-        print('f22.shape', f22.shape) # torch.Size([32, 1024])
 
         f22_b = self.backbone.b2(f22)
 
         f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
-        print('f33.shape', f33.shape) # torch.Size([32, 1024])
+
         f33_b = self.backbone.b3(f33)
         y33 = self.backbone.fc(f33_b)
 

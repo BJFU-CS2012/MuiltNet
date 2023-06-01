@@ -11,7 +11,7 @@ class HInterface(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = CANet(self.config,isZoom=False)
+        self.model = CANet(self.config)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
@@ -23,12 +23,12 @@ class HInterface(pl.LightningModule):
         x, dcts, y, pseudocode = train_batch
 
         input = (x, dcts)
-        alpha1, alpha2, f44_b, y33, feats, f44 = self.model(input)
+        alpha1, alpha2, f44_b, y33, feats = self.model(input)
         with torch.no_grad():
             zoom_images= batch_augment(x, feats, mode='zoom')
 
         input2 = (zoom_images, dcts)
-        _, _, _, y_zoom, _ ,_ = self.model(input2)
+        _, _, _, y_zoom, _ = self.model(input2)
 
         y_att = (y33 + y_zoom)/2
         # y_att = y33
@@ -50,7 +50,7 @@ class HInterface(pl.LightningModule):
 
         x, dcts, y, flag = val_batch
         input = (x,dcts)
-        _, _, f44_b, _, _, _ = self.model(input)
+        _, _, f44_b, _, _= self.model(input)
 
         outputs = {'output_code': f44_b,
                    'label': y,
