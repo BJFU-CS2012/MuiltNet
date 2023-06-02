@@ -157,45 +157,24 @@ class CANet(nn.Module):
         x = self.backbone.relu(x)
         out_t = self.backbone.maxpool(x)
 
-        out_t, out_f = self.backbone.layer1([out_t, x_f])
-        alpha_beta1 = F.softmax(self.alpha_beta1, dim=0)
-        x1 = alpha_beta1[0] * out_t.detach() + alpha_beta1[1] * out_f.detach()
+        out_t, out_f = self.backbone.layer1([out_t, x_f]) #torch.Size([64, 256, 56, 56])
+        out_t1, out_f1 = self.backbone.layer2([out_t, out_f])
+        out_t2, out_f2 = self.backbone.layer3([out_t1, out_f1])
+        out_t3, out_f3 = self.backbone.layer4([out_t2, out_f2])
 
-        out_t, out_f = self.backbone.layer2([out_t, out_f])
-        alpha_beta2 = F.softmax(self.alpha_beta2, dim=0)
-        f1 = alpha_beta2[0] * out_t.detach() + alpha_beta2[1] * out_f.detach()
-
-        out_t, out_f = self.backbone.layer3([out_t, out_f])
-        alpha_beta3 = F.softmax(self.alpha_beta3, dim=0)
-        f2 = alpha_beta3[0] * out_t.detach() + alpha_beta3[1] * out_f.detach()
-
-        out_t, out_f = self.backbone.layer4([out_t, out_f])
         alpha_beta4 = F.softmax(self.alpha_beta4, dim=0)
-        f3 = alpha_beta4[0] * out_t.detach() + alpha_beta4[1] * out_f.detach()
+        f3 = alpha_beta4[0] * out_t3.detach() + alpha_beta4[1] * out_f3.detach()
 
         feats = f3
-
-        f11 = self.backbone.conv_block1(f1).view(-1, self.num_ftrs // 2)
-        f11_c = self.backbone.conv_block1(f1)
-        f11_b = self.backbone.b1(f11)
-
-        f22 = self.backbone.conv_block2(f2).view(-1, self.num_ftrs // 2)
-
-        f22_b = self.backbone.b2(f22)
-
-        f33 = self.backbone.conv_block3(f3).view(-1, self.num_ftrs // 2)
+        f11 = self.backbone.conv_block1(out_t1.detach() + out_f1.detach()).view(-1, self.num_ftrs // 2)
+        f22 = self.backbone.conv_block2(out_t2.detach() + out_f2.detach()).view(-1, self.num_ftrs // 2)
+        f33 = self.backbone.conv_block3(out_t3.detach() + out_f3.detach()).view(-1, self.num_ftrs // 2)
 
         f33_b = self.backbone.b3(f33)
         y33 = self.backbone.fc(f33_b)
 
-
         f44 = torch.cat((f11, f22, f33), -1)
         f44_b = self.backbone.hashing_concat(f44)
-
-        # x = self.backbone.avgpool(feats)
-        # x = torch.flatten(x, 1)
-        # y_x = self.backbone.fc_x(x)
-
         return self.alpha1, self.alpha2, f44_b, y33, feats
 
     def _make_layer(self, block, planes, num_blocks, stride, bn_threshold):
