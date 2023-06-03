@@ -143,7 +143,7 @@ class CANet(nn.Module):
             self.alpha_beta3 = nn.Parameter(torch.ones(2, requires_grad=True))
             self.register_parameter('alpha_beta1', self.alpha_beta3)
             self.alpha_beta4 = nn.Parameter(torch.ones(2, requires_grad=True))
-            self.register_parameter('alpha_beta1', self.alpha_beta4)
+            self.register_parameter('alpha_beta4', self.alpha_beta4)
 
     def forward(self, x):
         return self.forward_vanilla(x)

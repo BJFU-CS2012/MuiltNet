@@ -358,9 +358,10 @@ class CANet(nn.Module):
         high = rearrange(high, 'b n h w -> b n (h w)')
         low = rearrange(low, 'b n h w -> b n (h w)')
 
-
-        high = self.high_band(high) #就这一步会出现nan
-        low = self.low_band(low)
+        # print('high.shape111',high.shape)
+        # high = self.high_band(high) #就这一步会出现nan
+        # print('high.shape222', high.shape)
+        # low = self.low_band(low)
 
         y_h, b_h, r_h = torch.split(high, 32, 1)
         y_l, b_l, r_l = torch.split(low, 32, 1)
@@ -415,23 +416,23 @@ class CANet(nn.Module):
         feat4 = self.conv_r4(f2)
         feat5 = self.conv_r5(f3)
 
-        A3 = torch.sum(feat3.detach(), dim=1, keepdim=True)
-        a = torch.mean(A3, dim=[2, 3], keepdim=True)
-        M = (A3 > a).float().detach() + (A3 < a).float().detach() * 0.5  # 0.1
-        # print(M.size())
-        feat3 = feat3 * M
-
-        A4 = torch.sum(feat4.detach(), dim=1, keepdim=True)
-        a = torch.mean(A4, dim=[2, 3], keepdim=True)
-        M = (A4 > a).float().detach() + (A4 < a).float().detach() * 0.5  # 0.1
-        # print(M.size())
-        feat4 = feat4 * M
-
-        A5 = torch.sum(feat5.detach(), dim=1, keepdim=True)
-        a = torch.mean(A5, dim=[2, 3], keepdim=True)
-        M = (A5 > a).float().detach() + (A5 < a).float().detach() * 0.5  # 0.1
-        # print(M.size())
-        feat5 = feat5 * M
+        # A3 = torch.sum(feat3.detach(), dim=1, keepdim=True)
+        # a = torch.mean(A3, dim=[2, 3], keepdim=True)
+        # M = (A3 > a).float().detach() + (A3 < a).float().detach() * 0.5  # 0.1
+        # # print(M.size())
+        # feat3 = feat3 * M
+        #
+        # A4 = torch.sum(feat4.detach(), dim=1, keepdim=True)
+        # a = torch.mean(A4, dim=[2, 3], keepdim=True)
+        # M = (A4 > a).float().detach() + (A4 < a).float().detach() * 0.5  # 0.1
+        # # print(M.size())
+        # feat4 = feat4 * M
+        #
+        # A5 = torch.sum(feat5.detach(), dim=1, keepdim=True)
+        # a = torch.mean(A5, dim=[2, 3], keepdim=True)
+        # M = (A5 > a).float().detach() + (A5 < a).float().detach() * 0.5  # 0.1
+        # # print(M.size())
+        # feat5 = feat5 * M
 
         # -------------------------------------------------------------------------------------------------
         f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
