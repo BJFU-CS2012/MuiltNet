@@ -507,45 +507,24 @@ class CANet(nn.Module):
         feat4 = self.conv_r4(f2)
         feat5 = self.conv_r5(f3)
 
-        # print('before---feat2.shape',feat2.shape)  torch.Size([32, 64, 56, 56])
-        # print('before---feat3.shape',feat3.shape) torch.Size([32, 512, 28, 28])
-        # # print('before---feat4.shape',feat4.shape) torch.Size([32, 1024, 14, 14])
-        # # print('before---feat5.shape',feat5.shape) torch.Size([32, 2048, 7, 7])
-
         # connect feat5 and feat4#
         size4 = feat4.size()[2:]
         feat5 = torch.nn.functional.interpolate(feat5, size=size4, mode='bilinear', align_corners=True)
         feat4 = torch.cat((feat4, feat5), 1)
-        # print('after---feat4.shape',feat4.shape) #torch.Size([32, 3072, 14, 14])
-        # print('after---feat5.shape',feat5.shape) #torch.Size([32, 2048, 14, 14])
         feat4 = self.conv_decoder1(feat4)
-        #
-        # print('before---feat3.shape',feat3.shape) #torch.Size([32, 512, 28, 28])
-        # print('before---feat4.shape',feat4.shape) #torch.Size([32, 1024, 14, 14])
-        # connect feat4 and feat3#
+
         size3 = feat3.size()[2:]
         feat4 = torch.nn.functional.interpolate(feat4, size=size3, mode='bilinear', align_corners=True)
         feat3 = torch.cat((feat3, feat4), 1)
-        # print('after---feat3.shape',feat3.shape) #torch.Size([32, 1536, 28, 28])
-        # print('after---feat4.shape',feat4.shape) #torch.Size([32, 1024, 28, 28])
         feat3 = self.conv_decoder2(feat3)
-        #
-        # print('before---feat2.shape',feat2.shape) #torch.Size([32, 64, 56, 56])
-        # print('before---feat3.shape',feat3.shape) #torch.Size([32, 512, 28, 28])
+
         # connect feat3 and feat2#
         size2 = feat2.size()[2:]
         feat3 = torch.nn.functional.interpolate(feat3, size=size2, mode='bilinear', align_corners=True)
         feat2 = torch.cat((feat2, feat3), 1)
-        # print('after---feat2.shape',feat2.shape) torch.Size([32, 576, 56, 56])
-        # print('after---feat3.shape',feat3.shape) torch.Size([32, 64, 56, 56])
         feat2 = self.conv_decoder3(feat2)
 
         # -------------------------------------------------------------------------------------------------
-        # print('after---feat2.shape', feat2.shape) #torch.Size([32, 64, 56, 56])
-        # print('after---feat3.shape', feat3.shape) #torch.Size([32, 512, 56, 56])
-        # print('after---feat4.shape', feat4.shape) #torch.Size([32, 1024, 28, 28])
-        # print('after---feat5.shape', feat5.shape) #torch.Size([32, 2048, 14, 14])
-
         f00 = self.backbone.conv_block0(feat2).view(-1, self.num_ftrs // 2)
         f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
         f22 = self.backbone.conv_block2(feat4).view(-1, self.num_ftrs // 2)
