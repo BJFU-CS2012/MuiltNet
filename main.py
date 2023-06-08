@@ -65,6 +65,11 @@ if __name__ == '__main__':
         config.data_root = '../workspace/CUB_200_2011'
         config.train_csv = './datacsv/cub/train.csv'
         config.test_csv = './datacsv/cub/test.csv'
+    if config.dataset == 'tree':
+        config.classlen = 18
+        config.data_root = '../workspace/TreeData18'
+        config.train_csv = './datacsv/tree/train.csv'
+        config.test_csv = './datacsv/tree/test.csv'
     elif config.dataset == 'aircraft':
         config.classlen = 100
         config.data_root = '/workspace/data/FGVC/data'

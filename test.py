@@ -1,24 +1,23 @@
 import os
-import PIL.Image as Image
+import csv
+import pandas as pd
 
-import numpy as np
-import torch
-def Seg():
+l=[]
+files = []
+labels = []
+pwd = r'E:\Z_Share\TreeData18(full)\train'
+for filename in os.listdir(pwd):
+    l.append(filename)
 
-    dict = {     0: 0, 1: 1, 2: 8, 3: 16, 4: 9, 5: 2, 6: 3, 7: 10, 8: 17,
-                 9: 24, 10: 32, 11: 25, 12: 18, 13: 11, 14: 4, 15: 5, 16: 12,
-                 17: 19, 18: 26, 19: 33, 20: 40, 21: 48, 22: 41, 23: 34, 24: 27,
-                 25: 20, 26: 13, 27: 6, 28: 7, 29: 14, 30: 21, 31: 28, 32: 35,
-                 33: 42, 34: 49, 35: 56, 36: 57, 37: 50, 38: 43, 39: 36, 40: 29,
-                 41: 22, 42: 15, 43: 23, 44: 30, 45: 37, 46: 44, 47: 51, 48: 58,
-                 49: 59, 50: 52, 51: 45, 52: 38, 53: 31, 54: 39, 55: 46, 56: 53,
-                 57: 60, 58: 61, 59: 54, 60: 47, 61: 55, 62: 62, 63: 63         }
-    a = torch.zeros(1, 64, 1, 1)
 
-    for i in range(0, 32):
-        a[0, dict[i+32], 0, 0] = 1
-        a[0, dict[i], 0, 0] = 0.5
+for index,value in enumerate(l):
+    for filename in os.listdir(os.path.join(pwd,value)):
+        files.append('images/'+value+'/'+filename)
+        labels.append(index)
+# labels = [1 for index in range(len(files))]
 
-    return a
-
-print('seg',Seg())
+with open("train.csv","w",newline='',encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerow(['img_path','label'])
+    writer.writerows(zip(files,labels))
+f.close()
