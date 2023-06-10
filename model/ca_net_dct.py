@@ -196,8 +196,6 @@ class two_ConvBnRule_back(nn.Module):
         feat = self.BN2(feat)
         feat = self.relu2(feat)
 
-        if mid:
-            return feat, feat_mid
         return feat
 
 def Seg():
@@ -281,117 +279,132 @@ class PAM(nn.Module):
         return out
 
 class CANet(nn.Module):
-    def __init__(self, config, isZoom):
+    def __init__(self,
+                 config,
+                 block,
+                 blocks_num,
+                 groups=1,
+                 width_per_group=64,
+                 ):
         super().__init__()
+        #-----------------初始参数
         self.config = config
-        self.isZoom = isZoom
         bits = self.config.code_length
-        classlen = self.config.classlen
+        num_classes = self.config.classlen
 
-        if self.config.model_name == 'resnet50':
-            self.in_channel = 64
-            self.backbone = torchvision.models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-            # print('before\n', self.backbone)
-            self.backbone.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-            # Adaptive hyper
-            self.alpha1 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
-            self.alpha2 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
+        self.alpha1 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
+        self.alpha2 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
 
-            self.backbone.b1 = nn.Linear(1024, bits)
-            self.backbone.b2 = nn.Linear(1024, bits)
-            self.backbone.b3 = nn.Linear(1024, bits)
-            self.backbone.b_cat = nn.Linear(3072, bits)
-            self.backbone.fc = nn.Linear(bits, classlen)
-            # self.backbone.layer1 = self._make_layer(Bottleneck, 64, 3)
-            # self.backbone.layer2 = self._make_layer(Bottleneck, 128, 4, stride=2)
-            # self.backbone.layer3 = self._make_layer(Bottleneck, 256, 6, stride=2)
-            # self.backbone.layer4 = self._make_layer(Bottleneck, 512, 3, stride=2)
+        self.b1 = nn.Linear(1024, bits)
+        self.b2 = nn.Linear(1024, bits)
+        self.b3 = nn.Linear(1024, bits)
+        self.b_cat = nn.Linear(3072, bits)
+        self.num_ftrs = 2048
+        self.feature_size = 512
+        self.fc_x = nn.Linear(self.num_ftrs, num_classes)
 
-            # 网络的第一层加入注意力机制
-            self.ca = ChannelAttention(self.in_channel)
-            self.sa = SpatialAttention()
-            # 网络的卷积层的最后一层加入注意力机制
-            self.ca1 = ChannelAttention(2048)
-            self.sa1 = SpatialAttention()
+        self.in_channel = 64
+        self.groups = groups
+        self.width_per_group = width_per_group
+        self.conv1 = nn.Conv2d(3, self.in_channel, kernel_size=7, stride=2,
+                               padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.in_channel)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, blocks_num[0])
+        self.layer2 = self._make_layer(block, 128, blocks_num[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, blocks_num[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, blocks_num[3], stride=2)
 
-            self.relu = nn.ReLU(inplace=True)
-            self.num_ftrs = 2048
-            self.feature_size = 512
-            self.backbone.fc_x = nn.Linear(self.num_ftrs, classlen)
-            self.seg = Seg()
-            self.hor = HOR()
-            self.con1_2 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-            self.con1_3 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-            self.con1_4 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-            self.con1_5 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))  # output size = (1, 1)
+        self.fc = nn.Linear(bits, num_classes)
 
-            self.shuffle = channel_shuffle()
-            self.high_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
-            self.low_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
-            self.PAM2 = PAM(in_dim=64)
-            self.PAM3 = PAM(in_dim=64)
-            self.PAM4 = PAM(in_dim=64)
-            self.PAM5 = PAM(in_dim=64)
+        # 网络的第一层加入注意力机制
+        self.ca = ChannelAttention(self.in_channel)
+        self.sa = SpatialAttention()
+        # 网络的卷积层的最后一层加入注意力机制
+        self.ca1 = ChannelAttention(2048)
+        self.sa1 = SpatialAttention()
 
-            self.conv_r2 = two_ConvBnRule_back(64)
-            self.conv_r3 = two_ConvBnRule_back(512)
-            self.conv_r4 = two_ConvBnRule_back(1024)
-            self.conv_r5 = two_ConvBnRule_back(2048)
+        self.relu = nn.ReLU(inplace=True)
+        self.num_ftrs = 2048
+        self.feature_size = 512
+        self.fc_x = nn.Linear(self.num_ftrs, num_classes)
+        self.seg = Seg()
+        self.hor = HOR()
+        self.con1_2 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+        self.con1_3 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+        self.con1_4 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+        self.con1_5 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
 
-            self.conv_l2 = two_ConvBnRule(256)
-            self.conv_l3 = two_ConvBnRule(512)
-            self.conv_l4 = two_ConvBnRule(1024)
-            self.conv_l5 = two_ConvBnRule(2048)
+        self.shuffle = channel_shuffle()
+        self.high_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+        self.low_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
 
-            # decoder_convlution#
-            "chanal_decoder1 = chanal_feat5 + 64 = 1028 + 64 =1092"
-            self.conv_decoder1 = two_ConvBnRule_new(3072,1024)
-            self.conv_decoder2 = two_ConvBnRule_new(1536,512)
-            self.conv_decoder3 = two_ConvBnRule_new(576,64)
-            
-            self.band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
-            self.spatial = Transformer(dim=192, depth=1, heads=2, dim_head=64, mlp_dim=64 * 2, dropout=0)
-            # stage 0
-            self.backbone.conv_block0 = nn.Sequential(
-                BasicConv(self.num_ftrs // 32, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-                BasicConv(self.feature_size, 1024, kernel_size=3, stride=1, padding=1, relu=True),
-                nn.AdaptiveMaxPool2d(1),
-            )
-            #
-            # stage 1
-            self.backbone.conv_block1 = nn.Sequential(
-                BasicConv(self.num_ftrs // 4, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-                nn.AdaptiveMaxPool2d(1),
-            )
-            # stage 2
-            self.backbone.conv_block2 = nn.Sequential(
-                BasicConv(self.num_ftrs // 2, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-                nn.AdaptiveMaxPool2d(1),
-            )
-            # stage 3
-            self.backbone.conv_block3 = nn.Sequential(
-                BasicConv(self.num_ftrs, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-                nn.AdaptiveMaxPool2d(1),
-            )
-            # concat features from different stages
-            self.backbone.hashing_concat = nn.Sequential(
-                nn.BatchNorm1d(self.num_ftrs // 2 * 4, affine=True),
-                nn.Linear(self.num_ftrs // 2 * 4, self.feature_size),
-                nn.BatchNorm1d(self.feature_size, affine=True),
-                # nn.ELU(inplace=True),
-                nn.Linear(self.feature_size, bits),
-            )
-            # print('after\n',self.backbone)
-    # ----------------------------------FISH
-            self.backbone.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-            self.backbone.fc_c = nn.Linear(512, classlen)
-            self.backbone.b = nn.Linear(classlen, bits)
-    #-----------------------------------tfff
-            self.upsample = nn.UpsamplingNearest2d(scale_factor=2)
+        self.PAM2 = PAM(in_dim=64)
+        self.PAM3 = PAM(in_dim=64)
+        self.PAM4 = PAM(in_dim=64)
+        self.PAM5 = PAM(in_dim=64)
+
+        self.conv_r2 = two_ConvBnRule_back(64)
+        self.conv_r3 = two_ConvBnRule_back(512)
+        self.conv_r4 = two_ConvBnRule_back(1024)
+        self.conv_r5 = two_ConvBnRule_back(2048)
+
+        self.conv_l2 = two_ConvBnRule(256)
+        self.conv_l3 = two_ConvBnRule(512)
+        self.conv_l4 = two_ConvBnRule(1024)
+        self.conv_l5 = two_ConvBnRule(2048)
+
+        # decoder_convlution#
+        "chanal_decoder1 = chanal_feat5 + 64 = 1028 + 64 =1092"
+        self.conv_decoder1 = two_ConvBnRule_new(3072,1024)
+        self.conv_decoder2 = two_ConvBnRule_new(1536,512)
+        self.conv_decoder3 = two_ConvBnRule_new(576,64)
+
+        self.band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+        self.spatial = Transformer(dim=192, depth=1, heads=2, dim_head=64, mlp_dim=64 * 2, dropout=0)
+        # stage 0
+        self.conv_block0 = nn.Sequential(
+            BasicConv(self.num_ftrs // 32, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+            BasicConv(self.feature_size, 1024, kernel_size=3, stride=1, padding=1, relu=True),
+            nn.AdaptiveMaxPool2d(1),
+        )
+        #
+
+        # stage 1
+        self.conv_block1 = nn.Sequential(
+            BasicConv(self.num_ftrs // 4, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+            nn.AdaptiveMaxPool2d(1),
+        )
+
+        # stage 2
+        self.conv_block2 = nn.Sequential(
+            BasicConv(self.num_ftrs // 2, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+            nn.AdaptiveMaxPool2d(1),
+        )
+
+        # stage 3
+        self.conv_block3 = nn.Sequential(
+            BasicConv(self.num_ftrs, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+            nn.AdaptiveMaxPool2d(1),
+        )
+
+        # concat features from different stages
+        self.hashing_concat = nn.Sequential(
+            nn.BatchNorm1d(self.num_ftrs // 2 * 3, affine=True),
+            nn.Linear(self.num_ftrs // 2 * 3, self.feature_size),
+            nn.BatchNorm1d(self.feature_size, affine=True),
+            nn.ELU(inplace=True),
+            nn.Linear(self.feature_size, bits),
+        )
 
     def _make_layer(self, block, channel, block_num, stride=1):
         downsample = None
@@ -405,36 +418,35 @@ class CANet(nn.Module):
                             channel,
                             downsample=downsample,
                             stride=stride,
-                            groups=1,
-                            width_per_group=64))
+                            groups=self.groups,
+                            width_per_group=self.width_per_group))
         self.in_channel = channel * block.expansion
 
         for _ in range(1, block_num):
             layers.append(block(self.in_channel,
                                 channel,
-                                groups=1,
-                                width_per_group=64))
+                                groups=self.groups,
+                                width_per_group=self.width_per_group))
 
-        return nn.Sequential(*layers)
-
+            return nn.Sequential(*layers)
     def forward(self, x):
         return self.forward_vanilla(x)
     def forward_vanilla(self, input):
         x,DCT_x = input
-        DCT_x = self.upsample(DCT_x)
-        x = self.backbone.conv1(x)
-        x = self.backbone.bn1(x)
-        x = self.backbone.relu(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
 
         x = self.ca(x) * x
         x = self.sa(x) * x
 
-        x1 = self.backbone.maxpool(x)
+        x1 = self.maxpool(x)
 
-        x2 = self.backbone.layer1(x1)
-        f1 = self.backbone.layer2(x2)
-        f2 = self.backbone.layer3(f1)
-        f3 = self.backbone.layer4(f2)
+        x2 = self.layer1(x1)
+        f1 = self.layer2(x2)
+        f2 = self.layer3(f1)
+        f3 = self.layer4(f2)
+
         f3 = self.ca1(f3) * f3
         f3 = self.sa1(f3) * f3
 
@@ -525,16 +537,16 @@ class CANet(nn.Module):
         feat2 = self.conv_decoder3(feat2)
 
         # -------------------------------------------------------------------------------------------------
-        f00 = self.backbone.conv_block0(feat2).view(-1, self.num_ftrs // 2)
-        f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
-        f22 = self.backbone.conv_block2(feat4).view(-1, self.num_ftrs // 2)
-        f33 = self.backbone.conv_block3(feat5).view(-1, self.num_ftrs // 2)
+        f00 = self.conv_block0(feat2).view(-1, self.num_ftrs // 2)
+        f11 = self.conv_block1(feat3).view(-1, self.num_ftrs // 2)
+        f22 = self.conv_block2(feat4).view(-1, self.num_ftrs // 2)
+        f33 = self.conv_block3(feat5).view(-1, self.num_ftrs // 2)
 
-        f33_b = self.backbone.b3(f33)
-        output = self.backbone.fc(f33_b)
+        f33_b = self.b3(f33)
+        output = self.fc(f33_b)
         f44 = torch.cat((f00, f11, f22, f33), -1)
 
-        f44_b = self.backbone.hashing_concat(f44)
+        f44_b = self.hashing_concat(f44)
         return self.alpha1, self.alpha2, f44_b, output, feats,f44
 
 # Model Setting
@@ -566,3 +578,89 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         return nn.functional.relu(x, inplace=True)
+
+# 残差层 18和34层数
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_channel, out_channel, stride=1, downsample=None, **kwargs):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
+                               kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channel)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv2d(in_channels=out_channel, out_channels=out_channel,
+                               kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channel)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+# 残差层数 50和101
+class Bottleneck(nn.Module):
+    """
+    注意：原论文中，在虚线残差结构的主分支上，第一个1x1卷积层的步距是2，第二个3x3卷积层步距是1。
+    但在pytorch官方实现过程中是第一个1x1卷积层的步距是1，第二个3x3卷积层步距是2，
+    这么做的好处是能够在top1上提升大概0.5%的准确率。
+    可参考Resnet v1.5 https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch
+    """
+    expansion = 4
+
+    def __init__(self, in_channel, out_channel, stride=1, downsample=None,
+                 groups=1, width_per_group=64):
+        super(Bottleneck, self).__init__()
+
+        width = int(out_channel * (width_per_group / 64.)) * groups
+
+        self.conv1 = nn.Conv2d(in_channels=in_channel, out_channels=width,
+                               kernel_size=1, stride=1, bias=False)  # squeeze channels
+        self.bn1 = nn.BatchNorm2d(width)
+        # -----------------------------------------
+        self.conv2 = nn.Conv2d(in_channels=width, out_channels=width, groups=groups,
+                               kernel_size=3, stride=stride, bias=False, padding=1)
+        self.bn2 = nn.BatchNorm2d(width)
+        # -----------------------------------------
+        self.conv3 = nn.Conv2d(in_channels=width, out_channels=out_channel*self.expansion,
+                               kernel_size=1, stride=1, bias=False)  # unsqueeze channels
+        self.bn3 = nn.BatchNorm2d(out_channel*self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+def resnet50(config):
+    # https://download.pytorch.org/models/resnet50-19c8e357.pth
+    return CANet(config, Bottleneck, [3, 4, 6, 3])
