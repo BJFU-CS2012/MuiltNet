@@ -24,7 +24,7 @@ python main.py --dataset aircraft --gpu 0, --batch_size=32 --code_length=32 --nu
 python main.py --dataset vegfru --gpu 0, --batch_size=128 --code_length=32 --num_workers=4  --lr 0.005
 python main.py --dataset nabirds --gpu 0, --batch_size=128 --code_length=32 --num_workers=4  --lr 0.008
 python main.py --dataset food101 --gpu 0, --batch_size=128 --code_length=32 --num_workers=4  --lr 0.008
-
+"https://download.pytorch.org/models/resnet50-0676ba61.pth"
 python main.py --dataset cub --gpu 0, --batch_size=128 --code_length=32 --num_workers=4  --lr 0.008
 ```
 
@@ -65,3 +65,6 @@ chmod 777 build.sh
 修改了output：0.8093
 
 原始：0.819
+
+## 实验训练
+2023-0612 森林人 master中测试使用原始resnet50结构叠加eca模块测试tree数据集

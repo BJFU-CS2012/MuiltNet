@@ -72,7 +72,7 @@ if __name__ == '__main__':
         config.test_csv = './datacsv/tree/test.csv'
     elif config.dataset == 'aircraft':
         config.classlen = 100
-        config.data_root = '/workspace/data/FGVC/data'
+        config.data_root = '../workspace/FGVC/data'
         config.train_csv = './datacsv/aircraft/train.csv'
         config.test_csv = './datacsv/aircraft/test.csv'
     elif config.dataset == 'food101':
