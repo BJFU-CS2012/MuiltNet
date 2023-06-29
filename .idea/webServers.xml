@@ -24,7 +24,7 @@
         </fileTransfer>
       </webServer>
       <webServer id="8da12a6d-dcd4-4905-88fe-be94a34ed722" name="ccc">
-        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="45797" sshConfigId="fa334511-c361-4906-8ce0-e748d23c9811" sshConfig="root@i-1.gpushare.com:45797 password">
+        <fileTransfer rootFolder="/hy-tmp" accessType="SFTP" host="i-1.gpushare.com" port="46191" sshConfigId="fa334511-c361-4906-8ce0-e748d23c9811" sshConfig="root@i-1.gpushare.com:46191 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>

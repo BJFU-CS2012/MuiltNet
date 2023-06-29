@@ -3,8 +3,8 @@ from torch.nn import functional as F
 import pytorch_lightning as pl
 import os
 import torch_dct as DCT
-# from model.ca_net_dct import CANet
-from model.ca_resnet import resnet50
+from model.ca_net_dct import CANet
+# from model.ca_net_dct import resnet50
 from utils.attention_zoom import batch_augment
 from utils.evaluate import calc_map_k
 
@@ -12,14 +12,18 @@ class HInterface(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.model = resnet50(self.config)
+        self.model = CANet(self.config)
+        # self.model = resnet50(self.config)
+        #
+        # model_weight_path = "./resnet50.pth"
+        # assert os.path.exists(model_weight_path), "file {} does not exist.".format(model_weight_path)
+        # pre_weights = torch.load(model_weight_path)
+        # pre_weights.pop('fc.weight')
+        # pre_weights.pop('fc.bias')
+        # self.model.load_state_dict(pre_weights,strict=False)
 
-        model_weight_path = "./Model_result/model_EPA/ResNet50_EPA.pth"
-        assert os.path.exists(model_weight_path), "file {} does not exist.".format(model_weight_path)
-        self.model.load_state_dict(torch.load(model_weight_path))
-
-        for param in  self.model.parameters():
-            param.requires_grad = False
+        # for param in  self.model.parameters():
+        #     param.requires_grad = False
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.config.lr, momentum=0.9, weight_decay=5e-4)
@@ -27,7 +31,7 @@ class HInterface(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, train_batch, batch_idx):
-
+       
         x, ycbcr_image, y, pseudocode = train_batch
         # x, ycbcr_image = x.cuda().float(), ycbcr_image.cuda().float()
         num_batchsize = ycbcr_image.shape[0]

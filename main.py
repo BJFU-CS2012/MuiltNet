@@ -65,7 +65,7 @@ if __name__ == '__main__':
         config.data_root = '../workspace/CUB_200_2011'
         config.train_csv = './datacsv/cub/train.csv'
         config.test_csv = './datacsv/cub/test.csv'
-    if config.dataset == 'tree':
+    elif config.dataset == 'tree':
         config.classlen = 18
         config.data_root = '../workspace/TreeData18'
         config.train_csv = './datacsv/tree/train.csv'
@@ -73,8 +73,8 @@ if __name__ == '__main__':
     elif config.dataset == 'aircraft':
         config.classlen = 100
         config.data_root = '../workspace/FGVC/data'
-        config.train_csv = './datacsv/aircraft/train.csv'
-        config.test_csv = './datacsv/aircraft/test.csv'
+        config.train_csv = './datacsv/aircraft/aircraft_train.csv'
+        config.test_csv = './datacsv/aircraft/aircraft_test.csv'
     elif config.dataset == 'food101':
         config.classlen = 101
         config.data_root = '/workspace/dataset/fine-grained-dataset/food-101/images'
@@ -82,12 +82,12 @@ if __name__ == '__main__':
         config.test_csv = './datacsv/food101/test.csv'
     elif config.dataset == 'nabirds':
         config.classlen = 555
-        config.data_root = '/workspace/dataset/fine-grained-dataset/nabirds/'
-        config.train_csv = './datacsv/nabirds/train.csv'
-        config.test_csv = './datacsv/nabirds/test.csv'
+        config.data_root = '../workspace/dataset/nabirds'
+        config.train_csv = './datacsv/nabirds/datacsv_train.csv'
+        config.test_csv = './datacsv/nabirds/datacsv_test.csv'
     elif config.dataset == 'vegfru':
         config.classlen = 292
-        config.data_root = '/workspace/dataset/fine-grained-dataset/vegfru-dataset/'
+        config.data_root = '../workspace/dataset/fine-grained-dataset/vegfru-dataset/'
         config.train_csv = './datacsv/vegfru/train.csv'
         config.test_csv = './datacsv/vegfru/test.csv'
     else:

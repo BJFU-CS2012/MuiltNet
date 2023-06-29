@@ -88,45 +88,6 @@ class channel_shuffle(nn.Module):
         # flatten
         x = x.view(batchsize, -1, height, width)
         return x
-
-class two_ConvBnRule(nn.Module):
-
-    def __init__(self, in_chan, out_chan= 64):
-        super(two_ConvBnRule, self).__init__()
-
-        self.conv1 = nn.Conv2d(
-            in_channels=in_chan,
-            out_channels=out_chan,
-            kernel_size=3,
-            padding=1
-        )
-        self.BN1 = nn.BatchNorm2d(out_chan)
-        self.relu1 = nn.ReLU(inplace=True)
-
-        self.conv2 = nn.Conv2d(
-            in_channels=out_chan,
-            out_channels=out_chan,
-            kernel_size=3,
-            padding=1
-        )
-        self.BN2 = nn.BatchNorm2d(out_chan)
-        self.relu2 = nn.ReLU(inplace=True)
-
-    def forward(self, x, mid=False):
-        feat = self.conv1(x)
-        feat = self.BN1(feat)
-        feat = self.relu1(feat)
-
-        if mid:
-            feat_mid = feat
-
-        feat = self.conv2(feat)
-        feat = self.BN2(feat)
-        feat = self.relu2(feat)
-
-        if mid:
-            return feat, feat_mid
-        return feat
 class two_ConvBnRule_new(nn.Module):
 
     def __init__(self, in_chan, out_chan):
@@ -166,13 +127,13 @@ class two_ConvBnRule_new(nn.Module):
             return feat, feat_mid
         return feat
 
-class two_ConvBnRule_back(nn.Module):
+class two_ConvBnRule(nn.Module):
 
-    def __init__(self, out_chan):
-        super(two_ConvBnRule_back, self).__init__()
+    def __init__(self, in_chan, out_chan= 64):
+        super(two_ConvBnRule, self).__init__()
 
         self.conv1 = nn.Conv2d(
-            in_channels=64,
+            in_channels=in_chan,
             out_channels=out_chan,
             kernel_size=3,
             padding=1
@@ -188,14 +149,39 @@ class two_ConvBnRule_back(nn.Module):
         )
         self.BN2 = nn.BatchNorm2d(out_chan)
         self.relu2 = nn.ReLU(inplace=True)
+
     def forward(self, x, mid=False):
         feat = self.conv1(x)
         feat = self.BN1(feat)
         feat = self.relu1(feat)
+
+        if mid:
+            feat_mid = feat
+
         feat = self.conv2(feat)
         feat = self.BN2(feat)
         feat = self.relu2(feat)
 
+        if mid:
+            return feat, feat_mid
+        return feat
+class two_ConvBnRule_back(nn.Module):
+
+    def __init__(self, out_chan):
+        super(two_ConvBnRule_back, self).__init__()
+
+        self.conv1 = nn.Conv2d(
+            in_channels=64,
+            out_channels=out_chan,
+            kernel_size=3,
+            padding=1
+        )
+        self.BN1 = nn.BatchNorm2d(out_chan)
+        self.relu1 = nn.ReLU(inplace=True)
+    def forward(self, x, mid=False):
+        feat = self.conv1(x)
+        feat = self.BN1(feat)
+        feat = self.relu1(feat)
         return feat
 
 def Seg():
@@ -212,44 +198,9 @@ def Seg():
 
     for i in range(0, 32):
         a[0, dict[i+32], 0, 0] = 1
-        a[0, dict[i], 0, 0] = 0.5
+        # a[0, dict[i], 0, 0] = 1
 
     return a
-
-
-class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, ratio=16):
-        super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
-
-        self.fc1   = nn.Conv2d(in_planes, in_planes // 16, 1, bias=False)
-        self.relu1 = nn.ReLU()
-        self.fc2   = nn.Conv2d(in_planes // 16, in_planes, 1, bias=False)
-
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
-        max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        out = avg_out + max_out
-        return self.sigmoid(out)
-class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
-        super(SpatialAttention, self).__init__()
-
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
-        padding = 3 if kernel_size == 7 else 1
-
-        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x = torch.cat([avg_out, max_out], dim=1)
-        x = self.conv1(x)
-        return self.sigmoid(x)
 
 
 class PAM(nn.Module):
@@ -277,191 +228,198 @@ class PAM(nn.Module):
         out = rgb + freq
 
         return out
+class eca_layer(nn.Module):
+    """Constructs a ECA module.
+    Args:
+        channel: Number of channels of the input feature map
+        k_size: Adaptive selection of kernel size
+    """
+
+    def __init__(self, channel, k_size=3):
+        super(eca_layer, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # feature descriptor on the global spatial information
+        y = self.avg_pool(x)
+
+        # Two different branches of ECA module
+        y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+
+        # Multi-scale information fusion
+        y = self.sigmoid(y)
+        return x * y.expand_as(x)
 
 class CANet(nn.Module):
-    def __init__(self,
-                 config,
-                 block,
-                 blocks_num,
-                 groups=1,
-                 width_per_group=64,
-                 ):
+    def __init__(self, config):
         super().__init__()
-        #-----------------初始参数
         self.config = config
         bits = self.config.code_length
-        num_classes = self.config.classlen
+        classlen = self.config.classlen
 
-        self.alpha1 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
-        self.alpha2 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
+        if self.config.model_name == 'resnet50':
+            self.backbone = torchvision.models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+            # print('before\n', self.backbone)
+            self.backbone.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            # Adaptive hyper
+            self.alpha1 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
+            self.alpha2 = nn.Parameter(torch.ones(1) * 1, requires_grad=True)
 
-        self.b1 = nn.Linear(1024, bits)
-        self.b2 = nn.Linear(1024, bits)
-        self.b3 = nn.Linear(1024, bits)
-        self.b_cat = nn.Linear(3072, bits)
-        self.num_ftrs = 2048
-        self.feature_size = 512
-        self.fc_x = nn.Linear(self.num_ftrs, num_classes)
+            self.backbone.b1 = nn.Linear(1024, bits)
+            self.backbone.b2 = nn.Linear(1024, bits)
+            self.backbone.b3 = nn.Linear(1024, bits)
 
-        self.in_channel = 64
-        self.groups = groups
-        self.width_per_group = width_per_group
-        self.conv1 = nn.Conv2d(3, self.in_channel, kernel_size=7, stride=2,
-                               padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.in_channel)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, blocks_num[0])
-        self.layer2 = self._make_layer(block, 128, blocks_num[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, blocks_num[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, blocks_num[3], stride=2)
+            self.backbone.b_cat = nn.Linear(3072, bits)
 
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))  # output size = (1, 1)
-        self.fc = nn.Linear(bits, num_classes)
+            self.backbone.fc = nn.Linear(bits, classlen)
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            self.relu = nn.ReLU(inplace=True)
+            self.num_ftrs = 2048
+            self.feature_size = 512
+            self.backbone.fc_x = nn.Linear(self.num_ftrs, classlen)
+            self.seg = Seg()
+            self.hor = HOR()
+            self.con1_2 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+            self.con1_3 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+            self.con1_4 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+            self.con1_5 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+            self.vector_y = nn.Parameter(torch.FloatTensor(1, 64, 1, 1), requires_grad=True)
+            self.vector_cb = nn.Parameter(torch.FloatTensor(1, 64, 1, 1), requires_grad=True)
+            self.vector_cr = nn.Parameter(torch.FloatTensor(1, 64, 1, 1), requires_grad=True)
+            self.freq_out_1 = nn.Conv2d(64, 1, 1, 1, 0)
+            self.freq_out_2 = nn.Conv2d(64, 1, 1, 1, 0)
+            self.freq_out_3 = nn.Conv2d(64, 1, 1, 1, 0)
+            self.freq_out_4 = nn.Conv2d(64, 1, 1, 1, 0)
+            self.shuffle = channel_shuffle()
+            self.high_band = Transformer(dim=256, depth=4, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+            self.low_band = Transformer(dim=256, depth=4, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+            # output
+            self.conv_out = nn.Conv2d(
+                in_channels=64,
+                out_channels=1,
+                padding=1,
+                kernel_size=3
+            )
+            self.conv_out_2 = nn.Conv2d(
+                in_channels=64,
+                out_channels=1,
+                padding=1,
+                kernel_size=3
+            )
+            self.conv_out_3 = nn.Conv2d(
+                in_channels=64,
+                out_channels=1,
+                padding=1,
+                kernel_size=3
+            )
+            self.conv_out_4 = nn.Conv2d(
+                in_channels=64,
+                out_channels=1,
+                padding=1,
+                kernel_size=3
+            )
+            # self.conv_decoder1 = two_ConvBnRule(128)
+            # self.conv_decoder2 = two_ConvBnRule(128)
+            # self.conv_decoder3 = two_ConvBnRule(128)
+            self.conv_decoder1 = two_ConvBnRule_new(3072, 1024)
+            self.conv_decoder2 = two_ConvBnRule_new(1536, 512)
+            self.conv_decoder3 = two_ConvBnRule_new(576, 64)
 
-        # 网络的第一层加入注意力机制
-        self.ca = ChannelAttention(self.in_channel)
-        self.sa = SpatialAttention()
-        # 网络的卷积层的最后一层加入注意力机制
-        self.ca1 = ChannelAttention(2048)
-        self.sa1 = SpatialAttention()
+            self.PAM2 = PAM(in_dim=64)
+            self.PAM3 = PAM(in_dim=64)
+            self.PAM4 = PAM(in_dim=64)
+            self.PAM5 = PAM(in_dim=64)
 
-        self.relu = nn.ReLU(inplace=True)
-        self.num_ftrs = 2048
-        self.feature_size = 512
-        self.fc_x = nn.Linear(self.num_ftrs, num_classes)
-        self.seg = Seg()
-        self.hor = HOR()
-        self.con1_2 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-        self.con1_3 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-        self.con1_4 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
-        self.con1_5 = nn.Conv2d(in_channels=192, out_channels=64, kernel_size=1)
+            self.conv_r2 = two_ConvBnRule(64)
+            self.conv_r3 = two_ConvBnRule_back(512)
+            self.conv_r4 = two_ConvBnRule_back(1024)
+            self.conv_r5 = two_ConvBnRule_back(2048)
 
-        self.shuffle = channel_shuffle()
-        self.high_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
-        self.low_band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+            # self.conv_r3 = nn.Conv2d(in_channels=64, out_channels=512, kernel_size=1)
+            # self.conv_r4 = nn.Conv2d(in_channels=64, out_channels=1024, kernel_size=1)
+            # self.conv_r5 = nn.Conv2d(in_channels=64, out_channels=2048, kernel_size=1)
 
-        self.PAM2 = PAM(in_dim=64)
-        self.PAM3 = PAM(in_dim=64)
-        self.PAM4 = PAM(in_dim=64)
-        self.PAM5 = PAM(in_dim=64)
+            self.conv_l2 = two_ConvBnRule(256)
+            self.conv_l3 = two_ConvBnRule(512)
+            self.conv_l4 = two_ConvBnRule(1024)
+            self.conv_l5 = two_ConvBnRule(2048)
+            self.band = Transformer(dim=256, depth=4, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
+            self.spatial = Transformer(dim=192, depth=4, heads=2, dim_head=64, mlp_dim=64 * 2, dropout=0)
+            # stage 1
+            self.backbone.conv_block1 = nn.Sequential(
+                BasicConv(self.num_ftrs // 4, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+                nn.AdaptiveMaxPool2d(1),
+            )
 
-        self.conv_r2 = two_ConvBnRule_back(64)
-        self.conv_r3 = two_ConvBnRule_back(512)
-        self.conv_r4 = two_ConvBnRule_back(1024)
-        self.conv_r5 = two_ConvBnRule_back(2048)
+            # stage 2
+            self.backbone.conv_block2 = nn.Sequential(
+                BasicConv(self.num_ftrs // 2, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+                nn.AdaptiveMaxPool2d(1),
+            )
 
-        self.conv_l2 = two_ConvBnRule(256)
-        self.conv_l3 = two_ConvBnRule(512)
-        self.conv_l4 = two_ConvBnRule(1024)
-        self.conv_l5 = two_ConvBnRule(2048)
+            # stage 3
+            self.backbone.conv_block3 = nn.Sequential(
+                BasicConv(self.num_ftrs, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
+                nn.AdaptiveMaxPool2d(1),
+            )
+            # stage 1
+            self.backbone.conv_block4 = nn.Sequential(
+                BasicConv(64, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
+                BasicConv(self.feature_size, 96, kernel_size=3, stride=1, padding=1, relu=True),
+                nn.AdaptiveMaxPool2d(1),
+            )
+            # concat features from different stages
+            self.backbone.hashing_concat = nn.Sequential(
+                nn.BatchNorm1d(self.num_ftrs // 2 * 3, affine=True),
+                nn.Linear(self.num_ftrs // 2 * 3, self.feature_size),
+                nn.BatchNorm1d(self.feature_size, affine=True),
+                nn.ELU(inplace=True),
+                nn.Linear(self.feature_size, bits),
+            )
+            # print('after\n',self.backbone)
+            self.eca = eca_layer(64)
 
-        # decoder_convlution#
-        "chanal_decoder1 = chanal_feat5 + 64 = 1028 + 64 =1092"
-        self.conv_decoder1 = two_ConvBnRule_new(3072,1024)
-        self.conv_decoder2 = two_ConvBnRule_new(1536,512)
-        self.conv_decoder3 = two_ConvBnRule_new(576,64)
-
-        self.band = Transformer(dim=256, depth=1, heads=2, dim_head=128, mlp_dim=128 * 2, dropout=0)
-        self.spatial = Transformer(dim=192, depth=1, heads=2, dim_head=64, mlp_dim=64 * 2, dropout=0)
-        # stage 0
-        self.conv_block0 = nn.Sequential(
-            BasicConv(self.num_ftrs // 32, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-            BasicConv(self.feature_size, 1024, kernel_size=3, stride=1, padding=1, relu=True),
-            nn.AdaptiveMaxPool2d(1),
-        )
-        #
-
-        # stage 1
-        self.conv_block1 = nn.Sequential(
-            BasicConv(self.num_ftrs // 4, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-            nn.AdaptiveMaxPool2d(1),
-        )
-
-        # stage 2
-        self.conv_block2 = nn.Sequential(
-            BasicConv(self.num_ftrs // 2, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-            nn.AdaptiveMaxPool2d(1),
-        )
-
-        # stage 3
-        self.conv_block3 = nn.Sequential(
-            BasicConv(self.num_ftrs, self.feature_size, kernel_size=1, stride=1, padding=0, relu=True),
-            BasicConv(self.feature_size, self.num_ftrs // 2, kernel_size=3, stride=1, padding=1, relu=True),
-            nn.AdaptiveMaxPool2d(1),
-        )
-
-        # concat features from different stages
-        self.hashing_concat = nn.Sequential(
-            nn.BatchNorm1d(self.num_ftrs // 2 * 3, affine=True),
-            nn.Linear(self.num_ftrs // 2 * 3, self.feature_size),
-            nn.BatchNorm1d(self.feature_size, affine=True),
-            nn.ELU(inplace=True),
-            nn.Linear(self.feature_size, bits),
-        )
-
-    def _make_layer(self, block, channel, block_num, stride=1):
-        downsample = None
-        if stride != 1 or self.in_channel != channel * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.in_channel, channel * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(channel * block.expansion))
-
-        layers = []
-        layers.append(block(self.in_channel,
-                            channel,
-                            downsample=downsample,
-                            stride=stride,
-                            groups=self.groups,
-                            width_per_group=self.width_per_group))
-        self.in_channel = channel * block.expansion
-
-        for _ in range(1, block_num):
-            layers.append(block(self.in_channel,
-                                channel,
-                                groups=self.groups,
-                                width_per_group=self.width_per_group))
-
-            return nn.Sequential(*layers)
     def forward(self, x):
         return self.forward_vanilla(x)
     def forward_vanilla(self, input):
+
         x,DCT_x = input
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
 
-        x = self.ca(x) * x
-        x = self.sa(x) * x
 
-        x1 = self.maxpool(x)
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x1 = self.backbone.maxpool(x)
 
-        x2 = self.layer1(x1)
-        f1 = self.layer2(x2)
-        f2 = self.layer3(f1)
-        f3 = self.layer4(f2)
+        x2 = self.backbone.layer1(x1)
 
-        f3 = self.ca1(f3) * f3
-        f3 = self.sa1(f3) * f3
+        f1_ori = self.backbone.layer2(x2)
+        f1_eca = self.eca(f1_ori)
 
-        x2 = self.conv_l2(x2)
-        f1 = self.conv_l3(f1)
-        f2 = self.conv_l4(f2)
-        f3,f3_mid = self.conv_l5(f3, mid=True)
-        f3 = self.hor(f3, f3_mid)
+        f2_ori = self.backbone.layer3(f1_ori)
+        f2_eca = self.eca(f2_ori)
+
+        conv5_b = self.backbone.layer4[:2](f2_ori)
+
+        f3_ori = self.backbone.layer4[2](conv5_b)
+        # f3_ori = self.backbone.layer4(f2_ori)
+        f3_eca = self.eca(f3_ori)
+
+
+        f1 = torch.add(f1_eca, f1_ori)
+        f2 = torch.add(f2_eca, f2_ori)
+        f3 = torch.add(f3_eca, f3_ori)
         feats = f3
 
-        # ----------------------------这里的缩减channel是为什么？？？这里需要参考dct的论文
         self.seg = self.seg.to(DCT_x.device)
-        feat_y = DCT_x[:, 0:64, :, :] * self.seg
-        feat_Cb = DCT_x[:, 64:128, :, :] * self.seg
-        feat_Cr = DCT_x[:, 128:192, :, :] * self.seg
+        feat_y = DCT_x[:, 0:64, :, :] * (self.seg + norm(self.vector_y))
+        feat_Cb = DCT_x[:, 64:128, :, :] * (self.seg + norm(self.vector_cb))
+        feat_Cr = DCT_x[:, 128:192, :, :] * (self.seg + norm(self.vector_cr))
         origin_feat_DCT = torch.cat((torch.cat((feat_y, feat_Cb), 1), feat_Cr), 1)
         origin_feat_DCT = self.shuffle(origin_feat_DCT)
 
@@ -474,17 +432,19 @@ class CANet(nn.Module):
         high = rearrange(high, 'b n h w -> b n (h w)')
         low = rearrange(low, 'b n h w -> b n (h w)')
 
-        high = self.high_band(high)
-        low = self.low_band(low)
+        # print('high.shape111',high.shape)
+        # high = self.high_band(high) #就这一步会出现nan
+        # print('high.shape222', high.shape)
+        # low = self.low_band(low)
 
         y_h, b_h, r_h = torch.split(high, 32, 1)
         y_l, b_l, r_l = torch.split(low, 32, 1)
 
+        # 这里又给平起来是为什么？？？？？dct
         feat_y = torch.cat([y_l, y_h], 1)
         feat_Cb = torch.cat([b_l, b_h], 1)
         feat_Cr = torch.cat([r_l, r_h], 1)
         feat_DCT = torch.cat((torch.cat((feat_y, feat_Cb), 1), feat_Cr), 1)
-
 
         feat_DCT = self.band(feat_DCT)                      # Figur3 step2 left output
         feat_DCT = feat_DCT.transpose(1, 2)
@@ -495,6 +455,9 @@ class CANet(nn.Module):
 
         feat_DCT = origin_feat_DCT + feat_DCT               # rgb + freq
 
+
+
+
         #using 1*1conv to change the numbers of the channel of DCT_x
         feat_DCT2 = self.con1_2(feat_DCT)
         feat_DCT3 = self.con1_3(feat_DCT)
@@ -502,11 +465,16 @@ class CANet(nn.Module):
         feat_DCT5 = self.con1_5(feat_DCT)
 
 
-
         feat_DCT2 = torch.nn.functional.interpolate(feat_DCT2,size=x2.size()[2:],mode='bilinear',align_corners=True)
         feat_DCT3 = torch.nn.functional.interpolate(feat_DCT3,size=f1.size()[2:],mode='bilinear',align_corners=True)
         feat_DCT4 = torch.nn.functional.interpolate(feat_DCT4,size=f2.size()[2:],mode='bilinear',align_corners=True)
         feat_DCT5 = torch.nn.functional.interpolate(feat_DCT5,size=f3.size()[2:],mode='bilinear',align_corners=True)
+
+        # ----------------------------这里的缩减channel是为什么？？？这里需要参考dct的论文
+        x2 = self.conv_l2(x2)
+        f1 = self.conv_l3(f1)
+        f2 = self.conv_l4(f2)
+        f3 = self.conv_l5(f3)
 
         #feature fusion
         x2 = self.PAM2(x2, feat_DCT2)
@@ -514,12 +482,13 @@ class CANet(nn.Module):
         f2 = self.PAM4(f2, feat_DCT4)
         f3 = self.PAM5(f3, feat_DCT5)
 
+
+
         feat2 = self.conv_r2(x2)
         feat3 = self.conv_r3(f1)
         feat4 = self.conv_r4(f2)
         feat5 = self.conv_r5(f3)
-
-        # connect feat5 and feat4#
+        #------------------------------------------------------------
         size4 = feat4.size()[2:]
         feat5 = torch.nn.functional.interpolate(feat5, size=size4, mode='bilinear', align_corners=True)
         feat4 = torch.cat((feat4, feat5), 1)
@@ -535,18 +504,20 @@ class CANet(nn.Module):
         feat3 = torch.nn.functional.interpolate(feat3, size=size2, mode='bilinear', align_corners=True)
         feat2 = torch.cat((feat2, feat3), 1)
         feat2 = self.conv_decoder3(feat2)
-
         # -------------------------------------------------------------------------------------------------
-        f00 = self.conv_block0(feat2).view(-1, self.num_ftrs // 2)
-        f11 = self.conv_block1(feat3).view(-1, self.num_ftrs // 2)
-        f22 = self.conv_block2(feat4).view(-1, self.num_ftrs // 2)
-        f33 = self.conv_block3(feat5).view(-1, self.num_ftrs // 2)
 
-        f33_b = self.b3(f33)
-        output = self.fc(f33_b)
-        f44 = torch.cat((f00, f11, f22, f33), -1)
+        f11 = self.backbone.conv_block1(feat3).view(-1, self.num_ftrs // 2)
+        f22 = self.backbone.conv_block2(feat4).view(-1, self.num_ftrs // 2)
+        f33 = self.backbone.conv_block3(feat5).view(-1, self.num_ftrs // 2)
 
-        f44_b = self.hashing_concat(f44)
+        f33_b = self.backbone.b3(f33)
+        output = self.backbone.fc(f33_b)
+        f44 = torch.cat((f11, f22, f33), -1)
+
+        # f44_b = self.backbone.hashing_concat(f44)
+
+        # f44_b = self.backbone.b(f44)
+        f44_b = self.backbone.hashing_concat(f44)
         return self.alpha1, self.alpha2, f44_b, output, feats,f44
 
 # Model Setting
@@ -578,89 +549,3 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         return nn.functional.relu(x, inplace=True)
-
-# 残差层 18和34层数
-class BasicBlock(nn.Module):
-    expansion = 1
-
-    def __init__(self, in_channel, out_channel, stride=1, downsample=None, **kwargs):
-        super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
-                               kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channel)
-        self.relu = nn.ReLU()
-        self.conv2 = nn.Conv2d(in_channels=out_channel, out_channels=out_channel,
-                               kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channel)
-        self.downsample = downsample
-
-    def forward(self, x):
-        identity = x
-        if self.downsample is not None:
-            identity = self.downsample(x)
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-
-        out += identity
-        out = self.relu(out)
-
-        return out
-
-# 残差层数 50和101
-class Bottleneck(nn.Module):
-    """
-    注意：原论文中，在虚线残差结构的主分支上，第一个1x1卷积层的步距是2，第二个3x3卷积层步距是1。
-    但在pytorch官方实现过程中是第一个1x1卷积层的步距是1，第二个3x3卷积层步距是2，
-    这么做的好处是能够在top1上提升大概0.5%的准确率。
-    可参考Resnet v1.5 https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch
-    """
-    expansion = 4
-
-    def __init__(self, in_channel, out_channel, stride=1, downsample=None,
-                 groups=1, width_per_group=64):
-        super(Bottleneck, self).__init__()
-
-        width = int(out_channel * (width_per_group / 64.)) * groups
-
-        self.conv1 = nn.Conv2d(in_channels=in_channel, out_channels=width,
-                               kernel_size=1, stride=1, bias=False)  # squeeze channels
-        self.bn1 = nn.BatchNorm2d(width)
-        # -----------------------------------------
-        self.conv2 = nn.Conv2d(in_channels=width, out_channels=width, groups=groups,
-                               kernel_size=3, stride=stride, bias=False, padding=1)
-        self.bn2 = nn.BatchNorm2d(width)
-        # -----------------------------------------
-        self.conv3 = nn.Conv2d(in_channels=width, out_channels=out_channel*self.expansion,
-                               kernel_size=1, stride=1, bias=False)  # unsqueeze channels
-        self.bn3 = nn.BatchNorm2d(out_channel*self.expansion)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-
-    def forward(self, x):
-        identity = x
-        if self.downsample is not None:
-            identity = self.downsample(x)
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        out += identity
-        out = self.relu(out)
-
-        return out
-def resnet50(config):
-    # https://download.pytorch.org/models/resnet50-19c8e357.pth
-    return CANet(config, Bottleneck, [3, 4, 6, 3])
