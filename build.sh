@@ -15,4 +15,4 @@ pip install torch_dct -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install einops -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install scikit-image -i https://pypi.tuna.tsinghua.edu.cn/simple
 echo '---------------------------安装完成'
-cd /hy-tmp/FG-CNET-master/
+cd /hy-tmp/Muilti-master/
