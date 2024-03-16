@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="ac38ebf8-c0a1-40d2-bc4e-db96287b9abd" port="5529" customName="24G1599" nameFormat="CUSTOM" username="root" useOpenSSHConfig="true">
+        <option name="customName" value="24G1599" />
+      </sshConfig>
+      <sshConfig authType="PASSWORD" host="i-1.gpushare.com" id="fa334511-c361-4906-8ce0-e748d23c9811" port="46191" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="true" />
+    </configs>
+  </component>
+</project>
